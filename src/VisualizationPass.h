@@ -47,6 +47,12 @@ private:
     nvrhi::GraphicsPipelineHandle m_ConfidencePipeline;
     
     nvrhi::BufferHandle m_ConstantBuffer;
+
+    nvrhi::BindingLayoutHandle m_EnvVisLayout;
+    nvrhi::BindingSetHandle m_EnvVisSet;
+    nvrhi::ShaderHandle m_EnvVisPixelShader;
+    nvrhi::GraphicsPipelineHandle m_EnvVisPipeline;
+    nvrhi::BufferHandle m_EnvVisConstantBuffer;
     
 public:
 

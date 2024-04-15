@@ -173,7 +173,9 @@ public:
         bool enableAdditiveBlend,
         bool enableEmissiveSurfaces,
         bool enableAccumulation,
-        bool enableReStirGI
+        bool enableReStirGI,
+        bool environmentOnly = false,
+        bool enableEnvironmentGuiding = false
     );
 
     void NextFrame();

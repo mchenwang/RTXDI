@@ -53,6 +53,8 @@
 #include "Testing.h"
 #include "DebugViz/DebugVizPasses.h"
 
+#include "CalculateEnvVisCdfPass.h"
+
 #if WITH_NRD
 #include "NrdIntegration.h"
 #endif
@@ -121,6 +123,8 @@ private:
     std::unique_ptr<engine::IesProfileLoader> m_IesProfileLoader;
     std::shared_ptr<Profiler> m_Profiler;
     std::unique_ptr<DebugVizPasses> m_DebugVizPasses;
+
+    std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
 
     uint32_t m_RenderFrameIndex = 0;
     
@@ -212,7 +216,8 @@ public:
             m_BindlessLayout = GetDevice()->createBindlessLayout(bindlessLayoutDesc);
         }
 
-        std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
+        std::filesystem::path scenePath = "/media/test.json";
+        // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
 
@@ -246,6 +251,7 @@ public:
         m_PrepareLightsPass = std::make_unique<PrepareLightsPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
         m_LightingPasses = std::make_unique<LightingPasses>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_Profiler, m_BindlessLayout);
 
+        m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
 
 #ifdef WITH_DLSS
         {
@@ -367,6 +373,8 @@ public:
         m_PostprocessGBufferPass->CreatePipeline();
         m_GlassPass->CreatePipeline(m_ui.useRayQuery);
         m_PrepareLightsPass->CreatePipeline();
+
+        m_CalculateEnvVisCdfPass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -674,7 +682,9 @@ public:
                 (numPrimitiveLights + primitiveAllocationQuantum - 1) & ~(primitiveAllocationQuantum - 1),
                 numGeometryInstances,
                 environmentMapSize.x,
-                environmentMapSize.y);
+                environmentMapSize.y,
+                (uint32_t)m_View.GetViewport().width(),
+                (uint32_t)m_View.GetViewport().height());
 
             m_PrepareLightsPass->CreateBindingSet(*m_RtxdiResources);
             
@@ -709,6 +719,8 @@ public:
                 m_Scene->GetPrevTopLevelAS(),
                 *m_RenderTargets,
                 *m_RtxdiResources);
+
+            m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)
@@ -1261,8 +1273,20 @@ public:
                 /* enableAdditiveBlend = */ enableDirectReStirPass,
                 /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
-                enableReSTIRGI
+                enableReSTIRGI,
+                m_ui.indirectLightingMode == IndirectLightingMode::EnvOnly,
+                m_ui.enableEnvGuiding
                 );
+        }
+
+        if (m_ui.envGuidingResetFlag)
+        {
+            m_ui.envGuidingResetFlag = false;
+            m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
+        }
+        else if (m_RenderFrameIndex % 10 == 0)
+        {
+            m_CalculateEnvVisCdfPass->Process(m_CommandList);
         }
 
         // If none of the passes above were executed, clear the textures to avoid stale data there.

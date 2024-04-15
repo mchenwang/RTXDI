@@ -50,7 +50,8 @@ enum class IndirectLightingMode : uint32_t
 {
     None,
     Brdf,
-    ReStirGI
+    ReStirGI,
+    EnvOnly
 };
 
 enum class QualityPreset : uint32_t
@@ -127,15 +128,21 @@ struct UIData
     QualityPreset preset = QualityPreset::Medium;
 
 #ifdef WITH_DLSS
-    AntiAliasingMode aaMode = AntiAliasingMode::DLSS;
+    // AntiAliasingMode aaMode = AntiAliasingMode::DLSS;
+    AntiAliasingMode aaMode = AntiAliasingMode::None;
 #else
-    AntiAliasingMode aaMode = AntiAliasingMode::TAA;
+    AntiAliasingMode aaMode = AntiAliasingMode::None;
+    // AntiAliasingMode aaMode = AntiAliasingMode::TAA;
 #endif
 
     uint32_t numAccumulatedFrames = 1;
 
-    DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
+    // DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
+    // IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
+    DirectLightingMode directLightingMode = DirectLightingMode::Brdf;
     IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
+    bool enableEnvGuiding = true;
+    bool envGuidingResetFlag = false;
     ibool enableAnimations = true;
     float animationSpeed = 1.f;
     int environmentMapDirty = 0; // 1 -> needs to be rendered; 2 -> passes/textures need to be created
@@ -144,7 +151,7 @@ struct UIData
     float environmentIntensityBias = 0.f;
     float environmentRotation = 0.f;
     
-    bool enableDenoiser = true;
+    bool enableDenoiser = false;
 #ifdef WITH_NRD
     bool usePrePass = false;
     float debug = 0.0f;

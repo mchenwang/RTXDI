@@ -54,6 +54,16 @@
 #define VIS_MODE_GI_WEIGHT           13
 #define VIS_MODE_GI_M                14
 
+#define VIS_MODE_ENV_VIS_MAP         15
+#define VIS_MODE_WS_ENV_VIS_MAP      16
+#define VIS_MODE_WS_GRID             17
+#define VIS_MODE_ENV_VIS_DEBUG_1     18
+#define VIS_MODE_ENV_VIS_DEBUG_2     19
+
+#define ENV_VISIBILITY_RESOLUTION    6
+#define ENV_GUID_GRID_DIMENSIONS     20
+#define ENV_GUID_GRID_CELL_SIZE      (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS)
+
 #define BACKGROUND_DEPTH 65504.f
 
 #define RAY_COUNT_TRACED(index) ((index) * 2)
@@ -238,7 +248,9 @@ struct ResamplingConstants
     BRDFPathTracing_Parameters brdfPT;
 
     uint visualizeRegirCells;
-    uint3 pad2;
+    uint environmentLightGIOnly;
+    uint enableEnvironmentGuiding;
+    uint pad2;
     
     uint2 environmentPdfTextureSize;
     uint2 localLightPdfTextureSize;
@@ -310,4 +322,19 @@ struct PolymorphicLightInfo
     uint padding;
 };
 
+struct EnvVisibilityMapData
+{
+    uint local_cnt[36];
+    uint total_cnt;
+    uint3 pad;
+};
+
+struct EnvVisibilityVisualizationConstants
+{
+    PlanarViewConstants view;
+
+    uint visualizationMode;
+    float2 resolutionScale;
+    float pad;
+};
 #endif // SHADER_PARAMETERS_H

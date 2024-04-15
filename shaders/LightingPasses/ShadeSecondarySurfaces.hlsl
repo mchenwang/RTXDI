@@ -26,8 +26,28 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
+#include "HashGridHelper.hlsli"
 
 static const float c_MaxIndirectRadiance = 10;
+
+static const uint random_colors_size = 11;
+static const float3 random_colors[random_colors_size] = {
+	float3(0,0,1),
+	float3(0,1,1),
+	float3(0,1,0),
+	float3(1,1,0),
+	float3(1,0,0),
+	float3(1,0,1),
+	float3(0.5,1,1),
+	float3(0.5,1,0.5),
+	float3(1,1,0.5),
+	float3(1,0.5,0.5),
+	float3(1,0.5,1),
+};
+float3 random_color(uint index)
+{
+	return random_colors[index % random_colors_size];
+}
 
 #if USE_RAY_QUERY
 [numthreads(RTXDI_SCREEN_SPACE_GROUP_SIZE, RTXDI_SCREEN_SPACE_GROUP_SIZE, 1)]
@@ -80,67 +100,142 @@ void RayGen()
     // Shade the secondary surface.
     if (isValidSecondarySurface && !isEnvironmentMap)
     {
-        RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
-            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryLocalLightSamples,
-            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryInfiniteLightSamples,
-            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
-            0,      // numBrdfSamples
-            0.f,    // brdfCutoff 
-            0.f);   // brdfMinRayT
+        if (!g_Const.environmentLightGIOnly) {
+            RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
+                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryLocalLightSamples,
+                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryInfiniteLightSamples,
+                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
+                0,      // numBrdfSamples
+                0.f,    // brdfCutoff 
+                0.f);   // brdfMinRayT
 
-        RAB_LightSample lightSample;
-        RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
-            sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
-#if RTXDI_ENABLE_PRESAMPLING
-        g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
-#if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
-        g_Const.regir,
-#endif
-#endif
-        lightSample);
+            RAB_LightSample lightSample;
+            RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
+                sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
+    #if RTXDI_ENABLE_PRESAMPLING
+            g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
+    #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
+            g_Const.regir,
+    #endif
+    #endif
+            lightSample);
 
-        if (g_Const.brdfPT.enableSecondaryResampling)
-        {
-            // Try to find this secondary surface in the G-buffer. If found, resample the lights
-            // from that G-buffer surface into the reservoir using the spatial resampling function.
-
-            float4 secondaryClipPos = mul(float4(secondaryGBufferData.worldPos, 1.0), g_Const.view.matWorldToClip);
-            secondaryClipPos.xyz /= secondaryClipPos.w;
-
-            if (all(abs(secondaryClipPos.xy) < 1.0) && secondaryClipPos.w > 0)
+            if (g_Const.brdfPT.enableSecondaryResampling)
             {
-                int2 secondaryPixelPos = int2(secondaryClipPos.xy * g_Const.view.clipToWindowScale + g_Const.view.clipToWindowBias);
-                secondarySurface.viewDepth = secondaryClipPos.w;
+                // Try to find this secondary surface in the G-buffer. If found, resample the lights
+                // from that G-buffer surface into the reservoir using the spatial resampling function.
 
-                RTXDI_DISpatialResamplingParameters sparams;
-                sparams.sourceBufferIndex = g_Const.restirDI.bufferIndices.shadingInputBufferIndex;
-                sparams.numSamples = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.numSpatialSamples;
-                sparams.numDisocclusionBoostSamples = 0;
-                sparams.targetHistoryLength = 0;
-                sparams.biasCorrectionMode = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialBiasCorrection;
-                sparams.samplingRadius = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialSamplingRadius;
-                sparams.depthThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialDepthThreshold;
-                sparams.normalThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialNormalThreshold;
-                sparams.enableMaterialSimilarityTest = false;
-                sparams.discountNaiveSamples = false;
+                float4 secondaryClipPos = mul(float4(secondaryGBufferData.worldPos, 1.0), g_Const.view.matWorldToClip);
+                secondaryClipPos.xyz /= secondaryClipPos.w;
 
-                reservoir = RTXDI_DISpatialResampling(secondaryPixelPos, secondarySurface, reservoir,
-                    rng, params, g_Const.restirDI.reservoirBufferParams, sparams, lightSample);
+                if (all(abs(secondaryClipPos.xy) < 1.0) && secondaryClipPos.w > 0)
+                {
+                    int2 secondaryPixelPos = int2(secondaryClipPos.xy * g_Const.view.clipToWindowScale + g_Const.view.clipToWindowBias);
+                    secondarySurface.viewDepth = secondaryClipPos.w;
+
+                    RTXDI_DISpatialResamplingParameters sparams;
+                    sparams.sourceBufferIndex = g_Const.restirDI.bufferIndices.shadingInputBufferIndex;
+                    sparams.numSamples = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.numSpatialSamples;
+                    sparams.numDisocclusionBoostSamples = 0;
+                    sparams.targetHistoryLength = 0;
+                    sparams.biasCorrectionMode = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialBiasCorrection;
+                    sparams.samplingRadius = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialSamplingRadius;
+                    sparams.depthThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialDepthThreshold;
+                    sparams.normalThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialNormalThreshold;
+                    sparams.enableMaterialSimilarityTest = false;
+                    sparams.discountNaiveSamples = false;
+
+                    reservoir = RTXDI_DISpatialResampling(secondaryPixelPos, secondarySurface, reservoir,
+                        rng, params, g_Const.restirDI.reservoirBufferParams, sparams, lightSample);
+                }
+            }
+
+            float3 indirectDiffuse = 0;
+            float3 indirectSpecular = 0;
+            float lightDistance = 0;
+            ShadeSurfaceWithLightSample(reservoir, secondarySurface, lightSample, /* previousFrameTLAS = */ false,
+                /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+
+            radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
+
+            // Firefly suppression
+            float indirectLuminance = calcLuminance(radiance);
+            if (indirectLuminance > c_MaxIndirectRadiance)
+                radiance *= c_MaxIndirectRadiance / indirectLuminance;
+        } else {
+            RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
+                0,
+                0,
+                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
+                0,      // numBrdfSamples
+                0.f,    // brdfCutoff 
+                0.f);   // brdfMinRayT
+
+            if (g_Const.enableEnvironmentGuiding) 
+            {
+                RTXDI_DIReservoir environmentReservoir = RTXDI_EmptyDIReservoir();
+                RAB_LightSample environmentSample = RAB_EmptyLightSample();
+
+                RAB_LightInfo environmentLightInfo = RAB_LoadLightInfo(g_Const.lightBufferParams.environmentLightParams.lightIndex, false);
+
+                float3 dir;
+
+                for (uint i = 0; i < sampleParams.numEnvironmentMapSamples; i++)
+                {
+                    float2 uv;
+                    float pdf;
+                    if (SampleEnvVisibilityMap(secondarySurface, rng, uv, pdf))
+                    {
+                        RAB_LightSample candidateSample = RAB_SamplePolymorphicLight(environmentLightInfo, secondarySurface, uv);
+                        float targetPdf = RAB_GetLightSampleTargetPdfForSurface(candidateSample, secondarySurface);
+                        bool selected = RTXDI_StreamSample(
+                            environmentReservoir, g_Const.lightBufferParams.environmentLightParams.lightIndex, 
+                            uv, RAB_GetNextRandom(rng), targetPdf, 1.0 / pdf);
+
+                        if (selected) environmentSample = candidateSample;
+                        // RTXDI_StreamEnvironmentLightAtUVIntoReservoir(
+                        //     rng, sampleParams, secondarySurface, 
+                        //     environmentLightInfo, g_Const.lightBufferParams.environmentLightParams.lightIndex, 
+                        //     uv, 1.f / pdf, environmentReservoir, environmentSample);
+                    }
+                }
+
+                RTXDI_FinalizeResampling(environmentReservoir, 1.0, sampleParams.numMisSamples);
+                environmentReservoir.M = 1;
+
+                float3 indirectDiffuse = 0;
+                float3 indirectSpecular = 0;
+                float lightDistance = 0;
+                ShadeSurfaceWithLightSample(environmentReservoir, secondarySurface, environmentSample, /* previousFrameTLAS = */ false,
+                    /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+
+                radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
+
+                // Firefly suppression
+                float indirectLuminance = calcLuminance(radiance);
+                if (indirectLuminance > c_MaxIndirectRadiance)
+                    radiance *= c_MaxIndirectRadiance / indirectLuminance;
+            }
+            else
+            {
+                RAB_LightSample environmentSample = RAB_EmptyLightSample();
+                RTXDI_DIReservoir environmentReservoir = RTXDI_SampleEnvironmentMap(rng, tileRng, secondarySurface,
+                    sampleParams, g_Const.lightBufferParams.environmentLightParams, g_Const.environmentLightRISBufferSegmentParams, environmentSample);
+
+                float3 indirectDiffuse = 0;
+                float3 indirectSpecular = 0;
+                float lightDistance = 0;
+                ShadeSurfaceWithLightSample(environmentReservoir, secondarySurface, environmentSample, /* previousFrameTLAS = */ false,
+                    /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+
+                radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
+
+                // Firefly suppression
+                float indirectLuminance = calcLuminance(radiance);
+                if (indirectLuminance > c_MaxIndirectRadiance)
+                    radiance *= c_MaxIndirectRadiance / indirectLuminance;
             }
         }
-
-        float3 indirectDiffuse = 0;
-        float3 indirectSpecular = 0;
-        float lightDistance = 0;
-        ShadeSurfaceWithLightSample(reservoir, secondarySurface, lightSample, /* previousFrameTLAS = */ false,
-            /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
-
-        radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
-
-        // Firefly suppression
-        float indirectLuminance = calcLuminance(radiance);
-        if (indirectLuminance > c_MaxIndirectRadiance)
-            radiance *= c_MaxIndirectRadiance / indirectLuminance;
     }
 
     bool outputShadingResult = true;
@@ -172,6 +267,10 @@ void RayGen()
         float3 specular = isSpecularRay ? radiance * throughput.rgb : 0.0;
 
         specular = DemodulateSpecular(primarySurface.specularF0, specular);
+
+        // uint hashId = GetUniformGridCellHashId(primarySurface.worldPos, 0.5f);
+        // diffuse = u_EnvVisiblityCdfMap[hashId * 36];
+        // specular = 0;
 
         StoreShadingOutput(GlobalIndex, pixelPosition, 
             primarySurface.viewDepth, primarySurface.roughness, diffuse, specular, 0, false, true);

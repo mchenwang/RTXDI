@@ -87,6 +87,13 @@ VK_PUSH_CONSTANT ConstantBuffer<PerPassConstants> g_PerPassConstants : register(
 SamplerState s_MaterialSampler : register(s0);
 SamplerState s_EnvironmentSampler : register(s1);
 
+// RWBuffer<uint> u_EnvVisiblityMap : register(u14);      // 128*128*128 * 6*6
+// RWBuffer<uint> u_EnvVisiblityCntMap : register(u15);   // 128*128*128
+RWStructuredBuffer<EnvVisibilityMapData> u_EnvVisiblityDataMap : register(u14);
+RWBuffer<float> u_EnvVisiblityCdfMap : register(u15);
+RWTexture2D<float4> u_EnvVisDebugColor1 : register(u16);
+RWTexture2D<float4> u_EnvVisDebugColor2 : register(u17);
+
 #define RTXDI_RIS_BUFFER u_RisBuffer
 #define RTXDI_LIGHT_RESERVOIR_BUFFER u_LightReservoirs
 #define RTXDI_NEIGHBOR_OFFSETS_BUFFER t_NeighborOffsets

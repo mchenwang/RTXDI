@@ -393,6 +393,14 @@ void UserInterface::SamplingSettings()
     }
     ImGui::Separator();
     
+    ImGui::Checkbox("Enable Env Guiding", &m_ui.enableEnvGuiding);   
+    if (ImGui::Button("Reset Environment Visibility Map"))
+    {
+        m_ui.envGuidingResetFlag = true;
+    }
+
+    ImGui::Separator();
+    
     if (ImGui_ColoredTreeNode("Direct Lighting", c_ColorAttentionHeader))
     {
         bool samplingSettingsChanged = false;
@@ -673,6 +681,7 @@ void UserInterface::SamplingSettings()
             "None\0"
             "BRDF\0"
             "ReSTIR GI\0"
+            "Env Only\0"
         );
         switch (m_ui.indirectLightingMode)
         {
@@ -922,6 +931,11 @@ void UserInterface::PostProcessSettings()
             "Specular Confidence\0"
             "GI Reservoir Weight\0"
             "GI Reservoir M\0"
+            "Environment visibility map\0"
+            "World space environment visibility map\0"
+            "World space grid\0"
+            "Env Vis Debug 1\0"
+            "Env Vis Debug 2\0"
         );
         ShowHelpMarker(
             "For HDR signals, displays a horizontal cross-section of the specified channel.\n"

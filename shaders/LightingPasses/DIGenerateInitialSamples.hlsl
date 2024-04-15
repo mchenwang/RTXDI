@@ -46,7 +46,7 @@ void RayGen()
     RAB_LightSample lightSample;
     RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, surface,
         sampleParams, g_Const.lightBufferParams, g_Const.restirDI.initialSamplingParams.localLightSamplingMode,
-#ifdef RTXDI_ENABLE_PRESAMPLING
+#if RTXDI_ENABLE_PRESAMPLING
         g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
 #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
         g_Const.regir,

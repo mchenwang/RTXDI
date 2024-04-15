@@ -64,6 +64,9 @@ void RayGen()
     float3 BRDF_over_PDF;
     float overall_PDF;
 
+    float3 debug_color = 0.f;
+
+    if (!g_Const.enableEnvironmentGuiding || true)
     {
         float3 specularDirection;
         float3 specular_BRDF_over_PDF;
@@ -111,12 +114,27 @@ void RayGen()
         // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
         overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
     }
+    else
+    {
+        float3 dir;
+        float pdf;
+        SampleEnvVisibilityMap(surface, rng, dir, pdf);
+        ray.Direction = dir;
+
+        BRDF_over_PDF = 1.f;
+        const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
+
+        // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
+        overall_PDF = diffuseLobe_PDF;
+    }
 
     if (dot(surface.geoNormal, ray.Direction) <= 0.0)
     {
         BRDF_over_PDF = 0.0;
         ray.TMax = 0;
     }
+
+    debug_color = ray.Direction * 0.5 + 0.5;
 
     ray.Origin = surface.worldPos;
 
@@ -244,6 +262,11 @@ void RayGen()
         secondarySurface.specularF0 = 0;
         secondarySurface.roughness = 0;
         secondarySurface.isEnvironmentMap = true;
+
+        if (g_Const.enableEnvironmentGuiding)
+        {
+            UpdateVisibilityMap(surface, normalize(ray.Direction), true);
+        }
     }
 
     if (g_Const.enableBrdfIndirect)
@@ -300,4 +323,32 @@ void RayGen()
         StoreShadingOutput(GlobalIndex, pixelPosition,
             surface.viewDepth, surface.roughness, diffuse, specular, payload.committedRayT, !g_Const.enableBrdfAdditiveBlend, !g_Const.enableBrdfIndirect);
     }
+
+    u_EnvVisDebugColor1[pixelPosition] = float4(1.f, 0.f, 0.f, 1.f);
+    u_EnvVisDebugColor2[pixelPosition] = float4(1.f, 0.f, 0.f, 1.f);
+
+    return;
+    {
+        uint hashId = GetUniformGridCellHashId(surface.worldPos, 0.5f);
+
+        float3 grid_bottom_center = GetUniformGridCell(surface.worldPos, 0.5f) + float3(0.5f, -0.1f, 0.5f);
+
+        float3 dir = normalize(surface.worldPos * 2.f - (grid_bottom_center));
+
+        float3 tangent, bitangent;
+        branchlessONB(surface.normal, tangent, bitangent);
+        float3 dirLocal = float3(dot(dir, tangent), dot(dir, bitangent), dot(dir, surface.normal));
+        uint pixelIndex = GetInnerPixelIndexBySmeiSphereTexcoord(GetSmeiSphereTexcoord(dirLocal));
+
+        float pdf = 0.f;
+        if (u_EnvVisiblityDataMap[hashId].total_cnt > 0)
+            pdf = u_EnvVisiblityDataMap[hashId].local_cnt[pixelIndex] * 1.f / u_EnvVisiblityDataMap[hashId].total_cnt;
+        debug_color = float3(pdf, pdf, pdf);
+    }
+    
+    StoreShadingOutput(GlobalIndex, pixelPosition,
+        surface.viewDepth, 1, debug_color, float3(0.f, 0.f, 0.f), 
+        payload.committedRayT, !g_Const.enableBrdfAdditiveBlend, !g_Const.enableBrdfIndirect);
+
+    return;
 }

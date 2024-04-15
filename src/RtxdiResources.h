@@ -43,6 +43,13 @@ public:
     nvrhi::TextureHandle LocalLightPdfTexture;
     nvrhi::BufferHandle GIReservoirBuffer;
 
+    // nvrhi::BufferHandle envVisibilityBuffer;
+    // nvrhi::BufferHandle envVisibilityCntBuffer;
+    nvrhi::BufferHandle envVisibilityDataBuffer;
+    nvrhi::BufferHandle envVisibilityCdfBuffer;
+    nvrhi::TextureHandle envVisDebugTexture1;
+    nvrhi::TextureHandle envVisDebugTexture2;
+
     RtxdiResources(
         nvrhi::IDevice* device, 
         const rtxdi::ReSTIRDIContext& context,
@@ -52,7 +59,9 @@ public:
         uint32_t maxPrimitiveLights,
         uint32_t maxGeometryInstances,
         uint32_t environmentMapWidth,
-        uint32_t environmentMapHeight);
+        uint32_t environmentMapHeight,
+        uint32_t viewportWidth,
+        uint32_t viewportHeight);
 
     void InitializeNeighborOffsets(nvrhi::ICommandList* commandList, uint32_t neighborOffsetCount);
 

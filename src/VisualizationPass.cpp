@@ -70,6 +70,25 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
         else
             m_ConfidenceBindingSetPrev = bindingSet;
     }
+
+    {
+        m_EnvVisPixelShader = shaderFactory.CreateShader("app/VisualizeEnvVis.hlsl", "main", nullptr, nvrhi::ShaderType::Pixel);
+        
+        auto cbd = nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(EnvVisibilityVisualizationConstants), "EnvVisibilityVisualizationConstants", 16);
+
+        m_EnvVisConstantBuffer = device->createBuffer(cbd);
+
+        auto bindingDesc = nvrhi::BindingSetDesc()
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferNormals))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_SRV(2, rtxdiResources.envVisibilityDataBuffer))
+            .addItem(nvrhi::BindingSetItem::TypedBuffer_SRV(3, rtxdiResources.envVisibilityCdfBuffer))
+            .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.envVisDebugTexture1))
+            .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.envVisDebugTexture2))
+            .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer));
+
+        nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_EnvVisLayout, m_EnvVisSet);
+    }
 }
 
 void VisualizationPass::Render(
@@ -82,6 +101,73 @@ void VisualizationPass::Render(
     uint32_t visualizationMode,
     bool enableAccumulation)
 {
+    if (visualizationMode == VIS_MODE_ENV_VIS_MAP || 
+        visualizationMode == VIS_MODE_WS_GRID || 
+        visualizationMode == VIS_MODE_WS_ENV_VIS_MAP || 
+        visualizationMode == VIS_MODE_ENV_VIS_DEBUG_1 || 
+        visualizationMode == VIS_MODE_ENV_VIS_DEBUG_2)
+    {
+        if (m_EnvVisPipeline == nullptr)
+        {
+            auto pipelineDesc = nvrhi::GraphicsPipelineDesc()
+                .setVertexShader(m_VertexShader)
+                .setPixelShader(m_EnvVisPixelShader)
+                .addBindingLayout(m_EnvVisLayout)
+                .setPrimType(nvrhi::PrimitiveType::TriangleStrip)
+                .setRenderState(nvrhi::RenderState()
+                    .setDepthStencilState(nvrhi::DepthStencilState().disableDepthTest().disableStencil())
+                    .setRasterState(nvrhi::RasterState().setCullNone())
+                    .setBlendState(nvrhi::BlendState().setRenderTarget(0, 
+                        nvrhi::utils::CreateAddBlendState(nvrhi::BlendFactor::One, nvrhi::BlendFactor::InvSrcAlpha))));
+
+            m_EnvVisPipeline = m_Device->createGraphicsPipeline(pipelineDesc, framebuffer);
+        }
+        
+        auto state = nvrhi::GraphicsState()
+            .setPipeline(m_EnvVisPipeline)
+            .addBindingSet(m_EnvVisSet)
+            .setFramebuffer(framebuffer);
+        
+        EnvVisibilityVisualizationConstants constants = {};
+        constants.visualizationMode = visualizationMode;
+        renderView.FillPlanarViewConstants(constants.view);
+
+        if (visualizationMode == VIS_MODE_ENV_VIS_MAP)
+        {
+            state.setViewport(upscaledView.GetViewportState());
+            const auto& renderViewport = renderView.GetViewportState().viewports[0];
+            const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
+            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f) / upscaledViewport.width();
+            constants.resolutionScale.x = 1.f;
+            constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f)  / upscaledViewport.height();
+            // state.setViewport(
+            //     nvrhi::ViewportState()
+            //     .addViewport(
+            //         nvrhi::Viewport(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION, 
+            //                         ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION))
+            //     .addScissorRect(
+            //         nvrhi::Rect(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION, 
+            //                     ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION)));
+            // constants.resolutionScale.x = 1.f;
+            // constants.resolutionScale.y = 1.f;
+        }
+        else
+        {
+            state.setViewport(upscaledView.GetViewportState());
+            const auto& renderViewport = renderView.GetViewportState().viewports[0];
+            const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
+            constants.resolutionScale.x = renderViewport.width() / upscaledViewport.width();
+            constants.resolutionScale.y = renderViewport.height() / upscaledViewport.height();
+        }
+
+        commandList->writeBuffer(m_EnvVisConstantBuffer, &constants, sizeof(constants));
+
+        commandList->setGraphicsState(state);
+        commandList->draw(nvrhi::DrawArguments().setVertexCount(4));
+
+        return;
+    }
+
     if (m_HdrPipeline == nullptr || m_HdrPipeline->getFramebufferInfo() != framebuffer->getFramebufferInfo())
     {
         auto pipelineDesc = nvrhi::GraphicsPipelineDesc()

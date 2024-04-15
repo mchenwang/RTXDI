@@ -27,7 +27,9 @@ RtxdiResources::RtxdiResources(
     uint32_t maxPrimitiveLights,
     uint32_t maxGeometryInstances,
     uint32_t environmentMapWidth,
-    uint32_t environmentMapHeight)
+    uint32_t environmentMapHeight,
+    uint32_t viewportWidth,
+    uint32_t viewportHeight)
     : m_MaxEmissiveMeshes(maxEmissiveMeshes)
     , m_MaxEmissiveTriangles(maxEmissiveTriangles)
     , m_MaxPrimitiveLights(maxPrimitiveLights)
@@ -161,6 +163,45 @@ RtxdiResources::RtxdiResources(
     giReservoirBufferDesc.debugName = "GIReservoirBuffer";
     giReservoirBufferDesc.canHaveUAVs = true;
     GIReservoirBuffer = device->createBuffer(giReservoirBufferDesc);
+
+    nvrhi::BufferDesc envVisibilityDataBufferDesc;
+    envVisibilityDataBufferDesc.byteSize = sizeof(EnvVisibilityMapData) * ENV_GUID_GRID_CELL_SIZE;
+    envVisibilityDataBufferDesc.structStride = sizeof(EnvVisibilityMapData);
+    envVisibilityDataBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+    envVisibilityDataBufferDesc.keepInitialState = true;
+    envVisibilityDataBufferDesc.debugName = "envVisibilityDataBuffer";
+    envVisibilityDataBufferDesc.canHaveUAVs = true;
+    envVisibilityDataBuffer = device->createBuffer(envVisibilityDataBufferDesc);
+    
+    nvrhi::BufferDesc envVisibilityCdfBufferDesc;
+    envVisibilityCdfBufferDesc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE * ENV_VISIBILITY_RESOLUTION * ENV_VISIBILITY_RESOLUTION;
+    envVisibilityCdfBufferDesc.format = nvrhi::Format::R32_UINT;
+    envVisibilityCdfBufferDesc.structStride = sizeof(uint);
+    envVisibilityCdfBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+    envVisibilityCdfBufferDesc.keepInitialState = true;
+    envVisibilityCdfBufferDesc.debugName = "envVisibilityCdfBuffer";
+    envVisibilityCdfBufferDesc.canHaveUAVs = true;
+    envVisibilityCdfBuffer = device->createBuffer(envVisibilityCdfBufferDesc);
+
+    nvrhi::TextureDesc envVisDebugTexture1Desc;
+    envVisDebugTexture1Desc.width = viewportWidth;
+    envVisDebugTexture1Desc.height = viewportHeight;
+    envVisDebugTexture1Desc.initialState = nvrhi::ResourceStates::ShaderResource;
+    envVisDebugTexture1Desc.debugName = "envVisDebugTexture1";
+    envVisDebugTexture1Desc.keepInitialState = true;
+    envVisDebugTexture1Desc.isUAV = true;
+    envVisDebugTexture1Desc.format = nvrhi::Format::RGBA32_FLOAT;
+    envVisDebugTexture1 = device->createTexture(envVisDebugTexture1Desc);
+
+    nvrhi::TextureDesc envVisDebugTexture2Desc;
+    envVisDebugTexture2Desc.width = viewportWidth;
+    envVisDebugTexture2Desc.height = viewportHeight;
+    envVisDebugTexture2Desc.initialState = nvrhi::ResourceStates::ShaderResource;
+    envVisDebugTexture2Desc.debugName = "envVisDebugTexture2";
+    envVisDebugTexture2Desc.keepInitialState = true;
+    envVisDebugTexture2Desc.isUAV = true;
+    envVisDebugTexture2Desc.format = nvrhi::Format::RGBA32_FLOAT;
+    envVisDebugTexture2 = device->createTexture(envVisDebugTexture2Desc);
 }
 
 void RtxdiResources::InitializeNeighborOffsets(nvrhi::ICommandList* commandList, uint32_t neighborOffsetCount)

@@ -139,6 +139,11 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::PushConstants(1, sizeof(PerPassConstants)),
         nvrhi::BindingLayoutItem::Sampler(0),
         nvrhi::BindingLayoutItem::Sampler(1),
+        
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(14),
+        nvrhi::BindingLayoutItem::TypedBuffer_UAV(15),
+        nvrhi::BindingLayoutItem::Texture_UAV(16),
+        nvrhi::BindingLayoutItem::Texture_UAV(17),
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
@@ -204,7 +209,13 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::ConstantBuffer(0, m_ConstantBuffer),
             nvrhi::BindingSetItem::PushConstants(1, sizeof(PerPassConstants)),
             nvrhi::BindingSetItem::Sampler(0, m_CommonPasses->m_LinearWrapSampler),
-            nvrhi::BindingSetItem::Sampler(1, m_CommonPasses->m_LinearWrapSampler)
+            nvrhi::BindingSetItem::Sampler(1, m_CommonPasses->m_LinearWrapSampler),
+
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(14, resources.envVisibilityDataBuffer),
+            nvrhi::BindingSetItem::TypedBuffer_UAV(15, resources.envVisibilityCdfBuffer),
+            nvrhi::BindingSetItem::Texture_UAV(16, resources.envVisDebugTexture1),
+            nvrhi::BindingSetItem::Texture_UAV(17, resources.envVisDebugTexture2),
+            // nvrhi::BindingSetItem::TypedBuffer_UAV(15, resources.envVisibilityCntBuffer),
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);
@@ -590,7 +601,9 @@ void LightingPasses::RenderBrdfRays(
     bool enableAdditiveBlend,
     bool enableEmissiveSurfaces,
     bool enableAccumulation,
-    bool enableReSTIRGI
+    bool enableReSTIRGI,
+    bool environmentOnly,
+    bool enableEnvironmentGuiding
     )
 {
     ResamplingConstants constants = {};
@@ -605,6 +618,8 @@ void LightingPasses::RenderBrdfRays(
     constants.enableBrdfIndirect = enableIndirect;
     constants.enableBrdfAdditiveBlend = enableAdditiveBlend;
     constants.enableAccumulation = enableAccumulation;
+    constants.environmentLightGIOnly = environmentOnly;
+    constants.enableEnvironmentGuiding = enableEnvironmentGuiding;
     constants.sceneConstants.enableEnvironmentMap = (environmentLight.textureIndex >= 0);
     constants.sceneConstants.environmentMapTextureIndex = (environmentLight.textureIndex >= 0) ? environmentLight.textureIndex : 0;
     constants.sceneConstants.environmentScale = environmentLight.radianceScale.x;
