@@ -81,11 +81,12 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
         auto bindingDesc = nvrhi::BindingSetDesc()
             .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
             .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferNormals))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_SRV(2, rtxdiResources.envVisibilityDataBuffer))
-            .addItem(nvrhi::BindingSetItem::TypedBuffer_SRV(3, rtxdiResources.envVisibilityCdfBuffer))
-            .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.envVisDebugTexture1))
-            .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.envVisDebugTexture2))
-            .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer));
+            .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
+            .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
+            .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.vMFBuffer))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.vMFDataBuffer))
+            .addItem(nvrhi::BindingSetItem::TypedBuffer_UAV(4, rtxdiResources.debugBuffer1));
 
         nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_EnvVisLayout, m_EnvVisSet);
     }
@@ -127,19 +128,28 @@ void VisualizationPass::Render(
             .setPipeline(m_EnvVisPipeline)
             .addBindingSet(m_EnvVisSet)
             .setFramebuffer(framebuffer);
+
+        static float3 s_cameraPositionPrev = renderView.GetViewOrigin();
+        static bool s_cntFlag = true;
         
         EnvVisibilityVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
+        constants.gridParameters.cameraPosition = renderView.GetViewOrigin();
+        constants.gridParameters.cameraPositionPrev = s_cameraPositionPrev;
+        constants.gridParameters.sceneScale = 1.f;
+        constants.gridParameters.logarithmBase = 2.f;
+        constants.cntFlag = s_cntFlag;
 
         if (visualizationMode == VIS_MODE_ENV_VIS_MAP)
         {
             state.setViewport(upscaledView.GetViewportState());
             const auto& renderViewport = renderView.GetViewportState().viewports[0];
             const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
-            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f) / upscaledViewport.width();
             constants.resolutionScale.x = 1.f;
-            constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f)  / upscaledViewport.height();
+            constants.resolutionScale.y = 1.f;
+            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f) / upscaledViewport.width();
+            // constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f)  / upscaledViewport.height();
             // state.setViewport(
             //     nvrhi::ViewportState()
             //     .addViewport(
@@ -160,10 +170,14 @@ void VisualizationPass::Render(
             constants.resolutionScale.y = renderViewport.height() / upscaledViewport.height();
         }
 
+        s_cntFlag = false;
+
         commandList->writeBuffer(m_EnvVisConstantBuffer, &constants, sizeof(constants));
 
         commandList->setGraphicsState(state);
         commandList->draw(nvrhi::DrawArguments().setVertexCount(4));
+
+        s_cameraPositionPrev = renderView.GetViewOrigin();
 
         return;
     }

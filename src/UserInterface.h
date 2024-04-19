@@ -51,7 +51,6 @@ enum class IndirectLightingMode : uint32_t
     None,
     Brdf,
     ReStirGI,
-    EnvOnly
 };
 
 enum class QualityPreset : uint32_t
@@ -141,8 +140,8 @@ struct UIData
     // IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
     DirectLightingMode directLightingMode = DirectLightingMode::Brdf;
     IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
-    bool enableEnvGuiding = true;
-    bool envGuidingResetFlag = false;
+    uint32_t guidingFlag = 0;
+    bool vmfResetFlag = false;
     ibool enableAnimations = true;
     float animationSpeed = 1.f;
     int environmentMapDirty = 0; // 1 -> needs to be rendered; 2 -> passes/textures need to be created

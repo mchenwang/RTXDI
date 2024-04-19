@@ -61,8 +61,19 @@
 #define VIS_MODE_ENV_VIS_DEBUG_2     19
 
 #define ENV_VISIBILITY_RESOLUTION    6
-#define ENV_GUID_GRID_DIMENSIONS     20
+#define ENV_GUID_GRID_DIMENSIONS     128
 #define ENV_GUID_GRID_CELL_SIZE      (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS)
+
+#define GUIDING_FLAG_ENABLE         1
+#define GUIDING_FLAG_GUIDE_DI       (1 << 1)
+#define GUIDING_FLAG_GUIDE_GI       (1 << 2)
+#define GUIDING_FLAG_UPDATE_ENABLE  (1 << 3)
+#define GUIDING_FLAG_DI_BRDF_MIS    (1 << 4)
+#define GUIDING_FLAG_GI_BRDF_MIS    (1 << 5)
+
+// #define ENV_GUID_FLAG_DI        1
+// #define ENV_GUID_FLAG_GI        (1 << 1)
+// #define ENV_GUID_FLAG_UPDATE    (1 << 2)
 
 #define BACKGROUND_DEPTH 65504.f
 
@@ -72,6 +83,14 @@
 #define REPORT_RAY(hit) if (g_PerPassConstants.rayCountBufferIndex >= 0) { \
     InterlockedAdd(u_RayCountBuffer[RAY_COUNT_TRACED(g_PerPassConstants.rayCountBufferIndex)], 1); \
     if (hit) InterlockedAdd(u_RayCountBuffer[RAY_COUNT_HITS(g_PerPassConstants.rayCountBufferIndex)], 1); }
+
+struct GridParameters
+{
+    float3 cameraPosition;
+    float logarithmBase;
+    float3 cameraPositionPrev;
+    float sceneScale;
+};
 
 struct BrdfRayTracingConstants
 {
@@ -248,9 +267,9 @@ struct ResamplingConstants
     BRDFPathTracing_Parameters brdfPT;
 
     uint visualizeRegirCells;
-    uint environmentLightGIOnly;
-    uint enableEnvironmentGuiding;
+    uint guidingFlag;
     uint pad2;
+    uint pad3;
     
     uint2 environmentPdfTextureSize;
     uint2 localLightPdfTextureSize;
@@ -333,8 +352,32 @@ struct EnvVisibilityVisualizationConstants
 {
     PlanarViewConstants view;
 
+    GridParameters gridParameters;
+
     uint visualizationMode;
     float2 resolutionScale;
-    float pad;
+    uint cntFlag;
 };
+
+#define VMF_MAX_DATA_NUM 20
+#define VMF_SAMPLE_FRACTION 0.9f
+
+struct vMF
+{
+    float3 mu;
+    float kappa;
+    float meanCosine;
+    float weightSum;
+    uint iterationCnt;
+    uint dataCnt;
+};
+
+struct vMFData
+{
+    float3 dir;
+    float pdf;
+    float radianceLuminance;
+    float3 pad;
+};
+
 #endif // SHADER_PARAMETERS_H

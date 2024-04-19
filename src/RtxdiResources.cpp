@@ -164,44 +164,76 @@ RtxdiResources::RtxdiResources(
     giReservoirBufferDesc.canHaveUAVs = true;
     GIReservoirBuffer = device->createBuffer(giReservoirBufferDesc);
 
-    nvrhi::BufferDesc envVisibilityDataBufferDesc;
-    envVisibilityDataBufferDesc.byteSize = sizeof(EnvVisibilityMapData) * ENV_GUID_GRID_CELL_SIZE;
-    envVisibilityDataBufferDesc.structStride = sizeof(EnvVisibilityMapData);
-    envVisibilityDataBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-    envVisibilityDataBufferDesc.keepInitialState = true;
-    envVisibilityDataBufferDesc.debugName = "envVisibilityDataBuffer";
-    envVisibilityDataBufferDesc.canHaveUAVs = true;
-    envVisibilityDataBuffer = device->createBuffer(envVisibilityDataBufferDesc);
+    // nvrhi::BufferDesc envVisibilityDataBufferDesc;
+    // envVisibilityDataBufferDesc.byteSize = sizeof(EnvVisibilityMapData) * ENV_GUID_GRID_CELL_SIZE;
+    // envVisibilityDataBufferDesc.structStride = sizeof(EnvVisibilityMapData);
+    // envVisibilityDataBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+    // envVisibilityDataBufferDesc.keepInitialState = true;
+    // envVisibilityDataBufferDesc.debugName = "envVisibilityDataBuffer";
+    // envVisibilityDataBufferDesc.canHaveUAVs = true;
+    // envVisibilityDataBuffer = device->createBuffer(envVisibilityDataBufferDesc);
     
-    nvrhi::BufferDesc envVisibilityCdfBufferDesc;
-    envVisibilityCdfBufferDesc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE * ENV_VISIBILITY_RESOLUTION * ENV_VISIBILITY_RESOLUTION;
-    envVisibilityCdfBufferDesc.format = nvrhi::Format::R32_UINT;
-    envVisibilityCdfBufferDesc.structStride = sizeof(uint);
-    envVisibilityCdfBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-    envVisibilityCdfBufferDesc.keepInitialState = true;
-    envVisibilityCdfBufferDesc.debugName = "envVisibilityCdfBuffer";
-    envVisibilityCdfBufferDesc.canHaveUAVs = true;
-    envVisibilityCdfBuffer = device->createBuffer(envVisibilityCdfBufferDesc);
+    // nvrhi::BufferDesc envVisibilityCdfBufferDesc;
+    // envVisibilityCdfBufferDesc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE * ENV_VISIBILITY_RESOLUTION * ENV_VISIBILITY_RESOLUTION;
+    // envVisibilityCdfBufferDesc.format = nvrhi::Format::R32_UINT;
+    // envVisibilityCdfBufferDesc.structStride = sizeof(uint);
+    // envVisibilityCdfBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+    // envVisibilityCdfBufferDesc.keepInitialState = true;
+    // envVisibilityCdfBufferDesc.debugName = "envVisibilityCdfBuffer";
+    // envVisibilityCdfBufferDesc.canHaveUAVs = true;
+    // envVisibilityCdfBuffer = device->createBuffer(envVisibilityCdfBufferDesc);
 
-    nvrhi::TextureDesc envVisDebugTexture1Desc;
-    envVisDebugTexture1Desc.width = viewportWidth;
-    envVisDebugTexture1Desc.height = viewportHeight;
-    envVisDebugTexture1Desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    envVisDebugTexture1Desc.debugName = "envVisDebugTexture1";
-    envVisDebugTexture1Desc.keepInitialState = true;
-    envVisDebugTexture1Desc.isUAV = true;
-    envVisDebugTexture1Desc.format = nvrhi::Format::RGBA32_FLOAT;
-    envVisDebugTexture1 = device->createTexture(envVisDebugTexture1Desc);
+    nvrhi::TextureDesc debugTexture1Desc;
+    debugTexture1Desc.width = viewportWidth;
+    debugTexture1Desc.height = viewportHeight;
+    debugTexture1Desc.initialState = nvrhi::ResourceStates::ShaderResource;
+    debugTexture1Desc.debugName = "debugTexture1";
+    debugTexture1Desc.keepInitialState = true;
+    debugTexture1Desc.isUAV = true;
+    debugTexture1Desc.format = nvrhi::Format::RGBA32_FLOAT;
+    debugTexture1 = device->createTexture(debugTexture1Desc);
 
-    nvrhi::TextureDesc envVisDebugTexture2Desc;
-    envVisDebugTexture2Desc.width = viewportWidth;
-    envVisDebugTexture2Desc.height = viewportHeight;
-    envVisDebugTexture2Desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    envVisDebugTexture2Desc.debugName = "envVisDebugTexture2";
-    envVisDebugTexture2Desc.keepInitialState = true;
-    envVisDebugTexture2Desc.isUAV = true;
-    envVisDebugTexture2Desc.format = nvrhi::Format::RGBA32_FLOAT;
-    envVisDebugTexture2 = device->createTexture(envVisDebugTexture2Desc);
+    nvrhi::TextureDesc debugTexture2Desc;
+    debugTexture2Desc.width = viewportWidth;
+    debugTexture2Desc.height = viewportHeight;
+    debugTexture2Desc.initialState = nvrhi::ResourceStates::ShaderResource;
+    debugTexture2Desc.debugName = "debugTexture2";
+    debugTexture2Desc.keepInitialState = true;
+    debugTexture2Desc.isUAV = true;
+    debugTexture2Desc.format = nvrhi::Format::RGBA32_FLOAT;
+    debugTexture2 = device->createTexture(debugTexture2Desc);
+
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(vMF) * ENV_GUID_GRID_CELL_SIZE;
+        desc.structStride = sizeof(vMF);
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "vMF Buffer";
+        desc.canHaveUAVs = true;
+        vMFBuffer = device->createBuffer(desc);
+    }
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(vMFData) * VMF_MAX_DATA_NUM * ENV_GUID_GRID_CELL_SIZE;
+        desc.structStride = sizeof(vMFData);
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "vMF Data Buffer";
+        desc.canHaveUAVs = true;
+        vMFDataBuffer = device->createBuffer(desc);
+    }
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE;
+        desc.format = nvrhi::Format::R32_UINT;
+        desc.structStride = sizeof(uint32_t);
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "debugBuffer1";
+        desc.canHaveUAVs = true;
+        debugBuffer1 = device->createBuffer(desc);
+    }
 }
 
 void RtxdiResources::InitializeNeighborOffsets(nvrhi::ICommandList* commandList, uint32_t neighborOffsetCount)

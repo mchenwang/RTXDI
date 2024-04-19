@@ -26,7 +26,8 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
-#include "HashGridHelper.hlsli"
+// #include "EnvVisibilityGuid.hlsli"
+// #include "../LightShaping.hlsli"
 
 static const float c_MaxIndirectRadiance = 10;
 
@@ -100,7 +101,9 @@ void RayGen()
     // Shade the secondary surface.
     if (isValidSecondarySurface && !isEnvironmentMap)
     {
-        if (!g_Const.environmentLightGIOnly) {
+        bool brdfSample = true;
+
+        if (brdfSample) {
             RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
                 g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryLocalLightSamples,
                 g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryInfiniteLightSamples,
@@ -163,78 +166,63 @@ void RayGen()
             if (indirectLuminance > c_MaxIndirectRadiance)
                 radiance *= c_MaxIndirectRadiance / indirectLuminance;
         } else {
-            RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
-                0,
-                0,
-                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
-                0,      // numBrdfSamples
-                0.f,    // brdfCutoff 
-                0.f);   // brdfMinRayT
+            // RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
+            //     0,
+            //     0,
+            //     g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
+            //     0,      // numBrdfSamples
+            //     0.f,    // brdfCutoff 
+            //     0.f);   // brdfMinRayT
 
-            if (g_Const.enableEnvironmentGuiding) 
-            {
-                RTXDI_DIReservoir environmentReservoir = RTXDI_EmptyDIReservoir();
-                RAB_LightSample environmentSample = RAB_EmptyLightSample();
+            // float2 uv;
+            // float pdf = 0.f;
+            // SampleEnvVisibilityMap(secondarySurface, rng, uv, pdf);
 
-                RAB_LightInfo environmentLightInfo = RAB_LoadLightInfo(g_Const.lightBufferParams.environmentLightParams.lightIndex, false);
+            // RAB_LightInfo environmentLightInfo = RAB_LoadLightInfo(g_Const.lightBufferParams.environmentLightParams.lightIndex, false);
+            // RAB_LightSample environmentSample = RAB_SamplePolymorphicLight(environmentLightInfo, secondarySurface, uv);
 
-                float3 dir;
+            // float3 indirectDiffuse = 0;
+            // float3 indirectSpecular = 0;
+            // float lightDistance = 0;
+            // // ShadeSurfaceWithLightSample(environmentReservoir, secondarySurface, environmentSample, /* previousFrameTLAS = */ false,
+            // //     /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+            
+            // float3 L = normalize(environmentSample.position - secondarySurface.worldPos);
 
-                for (uint i = 0; i < sampleParams.numEnvironmentMapSamples; i++)
-                {
-                    float2 uv;
-                    float pdf;
-                    if (SampleEnvVisibilityMap(secondarySurface, rng, uv, pdf))
-                    {
-                        RAB_LightSample candidateSample = RAB_SamplePolymorphicLight(environmentLightInfo, secondarySurface, uv);
-                        float targetPdf = RAB_GetLightSampleTargetPdfForSurface(candidateSample, secondarySurface);
-                        bool selected = RTXDI_StreamSample(
-                            environmentReservoir, g_Const.lightBufferParams.environmentLightParams.lightIndex, 
-                            uv, RAB_GetNextRandom(rng), targetPdf, 1.0 / pdf);
+            // float3 visibility = GetFinalVisibility(SceneBVH, secondarySurface, secondarySurface.worldPos + L * 10000.f, 0.00001f);
+            
+            // // environmentSample.solidAnglePdf = 1.f / solidAnglePdf;
+            // // environmentSample.radiance *= RTXDI_GetDIReservoirInvPdf(environmentReservoir) / environmentSample.solidAnglePdf;
 
-                        if (selected) environmentSample = candidateSample;
-                        // RTXDI_StreamEnvironmentLightAtUVIntoReservoir(
-                        //     rng, sampleParams, secondarySurface, 
-                        //     environmentLightInfo, g_Const.lightBufferParams.environmentLightParams.lightIndex, 
-                        //     uv, 1.f / pdf, environmentReservoir, environmentSample);
-                    }
-                }
+            // if (any(environmentSample.radiance > 0) && pdf > 0 && any(visibility > 0))
+            // {
+            //     SplitBrdf brdf = EvaluateBrdf(secondarySurface, environmentSample.position);
 
-                RTXDI_FinalizeResampling(environmentReservoir, 1.0, sampleParams.numMisSamples);
-                environmentReservoir.M = 1;
+            //     indirectDiffuse = brdf.demodulatedDiffuse * environmentSample.radiance;
+            //     indirectSpecular = brdf.specular * environmentSample.radiance;
 
-                float3 indirectDiffuse = 0;
-                float3 indirectSpecular = 0;
-                float lightDistance = 0;
-                ShadeSurfaceWithLightSample(environmentReservoir, secondarySurface, environmentSample, /* previousFrameTLAS = */ false,
-                    /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+            //     lightDistance = length(environmentSample.position - secondarySurface.worldPos);
+            // }
 
-                radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
+            // if (any(visibility > 0))
+            // {
+            //     if (g_Const.guidingFlag & ENV_GUID_FLAG_UPDATE)
+            //         UpdateVisibilityMap(secondarySurface, L, true);
+            //     if (pdf > 0.f)
+            //         radiance += (indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular) * visibility / pdf;
+            // }
 
-                // Firefly suppression
-                float indirectLuminance = calcLuminance(radiance);
-                if (indirectLuminance > c_MaxIndirectRadiance)
-                    radiance *= c_MaxIndirectRadiance / indirectLuminance;
-            }
-            else
-            {
-                RAB_LightSample environmentSample = RAB_EmptyLightSample();
-                RTXDI_DIReservoir environmentReservoir = RTXDI_SampleEnvironmentMap(rng, tileRng, secondarySurface,
-                    sampleParams, g_Const.lightBufferParams.environmentLightParams, g_Const.environmentLightRISBufferSegmentParams, environmentSample);
+            // // Firefly suppression
+            // float indirectLuminance = calcLuminance(radiance);
+            // if (indirectLuminance > c_MaxIndirectRadiance)
+            //     radiance *= c_MaxIndirectRadiance / indirectLuminance;
 
-                float3 indirectDiffuse = 0;
-                float3 indirectSpecular = 0;
-                float lightDistance = 0;
-                ShadeSurfaceWithLightSample(environmentReservoir, secondarySurface, environmentSample, /* previousFrameTLAS = */ false,
-                    /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+            // // radiance = secondarySurface.diffuseAlbedo / c_pi;
 
-                radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
-
-                // Firefly suppression
-                float indirectLuminance = calcLuminance(radiance);
-                if (indirectLuminance > c_MaxIndirectRadiance)
-                    radiance *= c_MaxIndirectRadiance / indirectLuminance;
-            }
+            // // u_DebugColor1[pixelPosition] = float4(RTXDI_GetDIReservoirInvPdf(environmentReservoir), environmentSample.solidAnglePdf, 0.f, 1.f);
+            
+            // u_DebugColor1[pixelPosition] = float4(indirectDiffuse, 1.f);
+            // u_DebugColor2[pixelPosition] = float4(indirectSpecular, 1.f);
         }
     }
 
@@ -267,10 +255,6 @@ void RayGen()
         float3 specular = isSpecularRay ? radiance * throughput.rgb : 0.0;
 
         specular = DemodulateSpecular(primarySurface.specularF0, specular);
-
-        // uint hashId = GetUniformGridCellHashId(primarySurface.worldPos, 0.5f);
-        // diffuse = u_EnvVisiblityCdfMap[hashId * 36];
-        // specular = 0;
 
         StoreShadingOutput(GlobalIndex, pixelPosition, 
             primarySurface.viewDepth, primarySurface.roughness, diffuse, specular, 0, false, true);

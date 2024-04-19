@@ -45,10 +45,15 @@ public:
 
     // nvrhi::BufferHandle envVisibilityBuffer;
     // nvrhi::BufferHandle envVisibilityCntBuffer;
-    nvrhi::BufferHandle envVisibilityDataBuffer;
-    nvrhi::BufferHandle envVisibilityCdfBuffer;
-    nvrhi::TextureHandle envVisDebugTexture1;
-    nvrhi::TextureHandle envVisDebugTexture2;
+    // nvrhi::BufferHandle envVisibilityDataBuffer;
+    // nvrhi::BufferHandle envVisibilityCdfBuffer;
+
+    nvrhi::BufferHandle vMFBuffer;
+    nvrhi::BufferHandle vMFDataBuffer;
+
+    nvrhi::TextureHandle debugTexture1;
+    nvrhi::TextureHandle debugTexture2;
+    nvrhi::BufferHandle debugBuffer1;
 
     RtxdiResources(
         nvrhi::IDevice* device, 

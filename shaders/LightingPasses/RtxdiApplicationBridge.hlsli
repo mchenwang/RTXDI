@@ -87,12 +87,12 @@ VK_PUSH_CONSTANT ConstantBuffer<PerPassConstants> g_PerPassConstants : register(
 SamplerState s_MaterialSampler : register(s0);
 SamplerState s_EnvironmentSampler : register(s1);
 
-// RWBuffer<uint> u_EnvVisiblityMap : register(u14);      // 128*128*128 * 6*6
-// RWBuffer<uint> u_EnvVisiblityCntMap : register(u15);   // 128*128*128
-RWStructuredBuffer<EnvVisibilityMapData> u_EnvVisiblityDataMap : register(u14);
-RWBuffer<float> u_EnvVisiblityCdfMap : register(u15);
-RWTexture2D<float4> u_EnvVisDebugColor1 : register(u16);
-RWTexture2D<float4> u_EnvVisDebugColor2 : register(u17);
+// RWStructuredBuffer<EnvVisibilityMapData> u_EnvVisiblityDataMap : register(u14);
+// RWBuffer<float> u_EnvVisiblityCdfMap : register(u15);
+RWStructuredBuffer<vMF> u_vMFBuffer : register(u14);
+RWStructuredBuffer<vMFData> u_vMFDataBuffer : register(u15);
+RWTexture2D<float4> u_DebugColor1 : register(u16);
+RWTexture2D<float4> u_DebugColor2 : register(u17);
 
 #define RTXDI_RIS_BUFFER u_RisBuffer
 #define RTXDI_LIGHT_RESERVOIR_BUFFER u_LightReservoirs
@@ -323,9 +323,9 @@ bool RAB_GetTemporalConservativeVisibility(RAB_Surface currentSurface, RAB_Surfa
 // Traces an expensive visibility ray that considers all alpha tested  and transparent geometry along the way.
 // Only used for final shading.
 // Not a required bridge function.
-float3 GetFinalVisibility(RaytracingAccelerationStructure accelStruct, RAB_Surface surface, float3 samplePosition)
+float3 GetFinalVisibility(RaytracingAccelerationStructure accelStruct, RAB_Surface surface, float3 samplePosition, float offset = 0.01f)
 {
-    RayDesc ray = setupVisibilityRay(surface, samplePosition, 0.01);
+    RayDesc ray = setupVisibilityRay(surface, samplePosition, offset);
 
     uint instanceMask = INSTANCE_MASK_OPAQUE;
     uint rayFlags = RAY_FLAG_NONE;

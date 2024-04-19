@@ -392,11 +392,49 @@ void UserInterface::SamplingSettings()
         ImGui::TreePop();
     }
     ImGui::Separator();
+
+    static bool s_GuidingEnable = true;
+    static bool s_GuidingDI = true;
+    static bool s_GuidingGI = false;
+    static bool s_GuidingUpdate = true;
+    static bool s_GuidingDIMIS = false;
+    static bool s_GuidingGIMIS = false;
     
-    ImGui::Checkbox("Enable Env Guiding", &m_ui.enableEnvGuiding);   
-    if (ImGui::Button("Reset Environment Visibility Map"))
+    ImGui::Checkbox("Enable Guiding", &s_GuidingEnable);
+    if (s_GuidingEnable)
     {
-        m_ui.envGuidingResetFlag = true;
+        ImGui::Checkbox("Guiding DI", &s_GuidingDI);
+        if (s_GuidingDI)
+        {
+            ImGui::Checkbox("DI BRDF MIS", &s_GuidingDIMIS);
+        }
+        ImGui::Checkbox("Guiding GI", &s_GuidingGI);
+        if (s_GuidingGI)
+        {
+            ImGui::Checkbox("GI BRDF MIS", &s_GuidingGIMIS);
+        }
+    }
+    ImGui::Checkbox("Enable Guiding Update", &s_GuidingUpdate);
+
+    if (!s_GuidingEnable)
+    {
+        s_GuidingDI = false;
+        s_GuidingGI = false;
+        s_GuidingUpdate = false;
+        s_GuidingDIMIS = false;
+        s_GuidingGIMIS = false;
+    }
+
+    m_ui.guidingFlag = (s_GuidingEnable ? 1 : 0);
+    m_ui.guidingFlag |= (s_GuidingDI ? (1 << 1) : 0);
+    m_ui.guidingFlag |= (s_GuidingGI ? (1 << 2) : 0);
+    m_ui.guidingFlag |= (s_GuidingUpdate ? (1 << 3) : 0);
+    m_ui.guidingFlag |= (s_GuidingDIMIS ? (1 << 4) : 0);
+    m_ui.guidingFlag |= (s_GuidingGIMIS ? (1 << 5) : 0);
+
+    if (ImGui::Button("Reset VMF"))
+    {
+        m_ui.vmfResetFlag = true;
     }
 
     ImGui::Separator();
@@ -681,7 +719,6 @@ void UserInterface::SamplingSettings()
             "None\0"
             "BRDF\0"
             "ReSTIR GI\0"
-            "Env Only\0"
         );
         switch (m_ui.indirectLightingMode)
         {

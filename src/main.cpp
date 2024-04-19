@@ -54,6 +54,7 @@
 #include "DebugViz/DebugVizPasses.h"
 
 #include "CalculateEnvVisCdfPass.h"
+#include "VMFPass.h"
 
 #if WITH_NRD
 #include "NrdIntegration.h"
@@ -124,7 +125,8 @@ private:
     std::shared_ptr<Profiler> m_Profiler;
     std::unique_ptr<DebugVizPasses> m_DebugVizPasses;
 
-    std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
+    // std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
+    std::unique_ptr<VMFPass> m_VMFPass;
 
     uint32_t m_RenderFrameIndex = 0;
     
@@ -218,6 +220,7 @@ public:
 
         std::filesystem::path scenePath = "/media/test.json";
         // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
+        // std::filesystem::path scenePath = "/media/Arcade/Arcade.gltf";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
 
@@ -251,7 +254,8 @@ public:
         m_PrepareLightsPass = std::make_unique<PrepareLightsPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
         m_LightingPasses = std::make_unique<LightingPasses>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_Profiler, m_BindlessLayout);
 
-        m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
+        // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
+        m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
 
 #ifdef WITH_DLSS
         {
@@ -374,7 +378,8 @@ public:
         m_GlassPass->CreatePipeline(m_ui.useRayQuery);
         m_PrepareLightsPass->CreatePipeline();
 
-        m_CalculateEnvVisCdfPass->CreatePipeline();
+        // m_CalculateEnvVisCdfPass->CreatePipeline();
+        m_VMFPass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -720,7 +725,8 @@ public:
                 *m_RenderTargets,
                 *m_RtxdiResources);
 
-            m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
+            // m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
+            m_VMFPass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)
@@ -1274,19 +1280,20 @@ public:
                 /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 enableReSTIRGI,
-                m_ui.indirectLightingMode == IndirectLightingMode::EnvOnly,
-                m_ui.enableEnvGuiding
+                m_ui.guidingFlag
                 );
         }
 
-        if (m_ui.envGuidingResetFlag)
+        if (m_ui.vmfResetFlag)
         {
-            m_ui.envGuidingResetFlag = false;
-            m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
+            m_ui.vmfResetFlag = false;
+            // m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
+            m_VMFPass->ResetModel(m_CommandList);
         }
-        else if (m_RenderFrameIndex % 10 == 0)
+        else// if (m_RenderFrameIndex % 20 == 0)
         {
-            m_CalculateEnvVisCdfPass->Process(m_CommandList);
+            // m_CalculateEnvVisCdfPass->Process(m_CommandList);
+            m_VMFPass->ProcessUpdate(m_CommandList);
         }
 
         // If none of the passes above were executed, clear the textures to avoid stale data there.

@@ -13,7 +13,7 @@
 
 #ifdef RTXDI_DIRESERVOIR_HLSLI
 
-#include "EnvVisibilityGuid.hlsli"
+// #include "EnvVisibilityGuid.hlsli"
 
 bool ShadeSurfaceWithLightSample(
     inout RTXDI_DIReservoir reservoir,
@@ -55,9 +55,12 @@ bool ShadeSurfaceWithLightSample(
                 visibility = GetFinalVisibility(SceneBVH, surface, lightSample.position);
             RTXDI_StoreVisibilityInDIReservoir(reservoir, visibility, g_Const.restirDI.temporalResamplingParams.discardInvisibleSamples);
 
-            float3 L = normalize(lightSample.position - surface.worldPos);
-            bool visible = (visibility.x == 0.f);
-            UpdateVisibilityMap(surface, L, visible);
+            // if (g_Const.guidingFlag & ENV_GUID_FLAG_UPDATE)
+            // {
+            //     float3 L = normalize(lightSample.position - surface.worldPos);
+            //     bool visible = (visibility.x == 0.f);
+            //     UpdateVisibilityMap(surface, L, visible);
+            // }
 
             needToStore = true;
         }

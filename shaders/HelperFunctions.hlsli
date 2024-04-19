@@ -213,4 +213,18 @@ float3 equirectUVToDirection(float2 uv, out float cosElevation)
     );
 }
 
+float3 ToWorld(in float3 dirLocal, in float3 normal)
+{
+    float3 tangent, bitangent;
+    branchlessONB(normal, tangent, bitangent);
+    return normalize(tangent * dirLocal.x + bitangent * dirLocal.y + normal * dirLocal.z);
+}
+
+float3 ToLocal(in float3 dir, in float3 normal)
+{
+    float3 tangent, bitangent;
+    branchlessONB(normal, tangent, bitangent);
+    return normalize(float3(dot(dir, tangent), dot(dir, bitangent), dot(dir, normal)));
+}
+
 #endif // HELPER_FUNCTIONS_HLSLI

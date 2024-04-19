@@ -90,6 +90,9 @@ private:
     nvrhi::BufferHandle m_SecondarySurfaceBuffer;
     nvrhi::BufferHandle m_GIReservoirBuffer;
 
+    nvrhi::BufferHandle m_vMFBuffer;
+    nvrhi::BufferHandle m_vMFDataBuffer;
+
     dm::uint2 m_EnvironmentPdfTextureSize;
     dm::uint2 m_LocalLightPdfTextureSize;
 
@@ -174,8 +177,7 @@ public:
         bool enableEmissiveSurfaces,
         bool enableAccumulation,
         bool enableReStirGI,
-        bool environmentOnly = false,
-        bool enableEnvironmentGuiding = false
+        uint32_t guidingFlag = 0
     );
 
     void NextFrame();
