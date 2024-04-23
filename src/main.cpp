@@ -53,8 +53,9 @@
 #include "Testing.h"
 #include "DebugViz/DebugVizPasses.h"
 
-#include "CalculateEnvVisCdfPass.h"
-#include "VMFPass.h"
+// #include "CalculateEnvVisCdfPass.h"
+// #include "VMFPass.h"
+#include "EnvGuidingUpdatePass.h"
 
 #if WITH_NRD
 #include "NrdIntegration.h"
@@ -126,7 +127,9 @@ private:
     std::unique_ptr<DebugVizPasses> m_DebugVizPasses;
 
     // std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
-    std::unique_ptr<VMFPass> m_VMFPass;
+    // std::unique_ptr<VMFPass> m_VMFPass;
+    std::unique_ptr<EnvGuidingUpdatePass> m_EnvGuidingUpdatePass;
+    
 
     uint32_t m_RenderFrameIndex = 0;
     
@@ -218,8 +221,8 @@ public:
             m_BindlessLayout = GetDevice()->createBindlessLayout(bindlessLayoutDesc);
         }
 
-        std::filesystem::path scenePath = "/media/test.json";
-        // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
+        // std::filesystem::path scenePath = "/media/test.json";
+        std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
         // std::filesystem::path scenePath = "/media/Arcade/Arcade.gltf";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
@@ -255,7 +258,8 @@ public:
         m_LightingPasses = std::make_unique<LightingPasses>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_Profiler, m_BindlessLayout);
 
         // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
-        m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
+        // m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
+        m_EnvGuidingUpdatePass = std::make_unique<EnvGuidingUpdatePass>(GetDevice(), m_ShaderFactory);
 
 #ifdef WITH_DLSS
         {
@@ -379,7 +383,8 @@ public:
         m_PrepareLightsPass->CreatePipeline();
 
         // m_CalculateEnvVisCdfPass->CreatePipeline();
-        m_VMFPass->CreatePipeline();
+        // m_VMFPass->CreatePipeline();
+        m_EnvGuidingUpdatePass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -726,7 +731,8 @@ public:
                 *m_RtxdiResources);
 
             // m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
-            m_VMFPass->CreateBindingSet(*m_RtxdiResources);
+            // m_VMFPass->CreateBindingSet(*m_RtxdiResources);
+            m_EnvGuidingUpdatePass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)
@@ -1284,16 +1290,26 @@ public:
                 );
         }
 
-        if (m_ui.vmfResetFlag)
+        // if (m_ui.vmfResetFlag)
+        // {
+        //     m_ui.vmfResetFlag = false;
+        //     // m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
+        //     m_VMFPass->ResetModel(m_CommandList);
+        // }
+        // else// if (m_RenderFrameIndex % 20 == 0)
+        // {
+        //     // m_CalculateEnvVisCdfPass->Process(m_CommandList);
+        //     m_VMFPass->ProcessUpdate(m_CommandList);
+        // }
+
+        if (m_ui.guidingResetFlag)
         {
-            m_ui.vmfResetFlag = false;
-            // m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
-            m_VMFPass->ResetModel(m_CommandList);
+            m_ui.guidingResetFlag = false;
+            m_EnvGuidingUpdatePass->Reset(m_CommandList);
         }
-        else// if (m_RenderFrameIndex % 20 == 0)
+        else
         {
-            // m_CalculateEnvVisCdfPass->Process(m_CommandList);
-            m_VMFPass->ProcessUpdate(m_CommandList);
+            m_EnvGuidingUpdatePass->Process(m_CommandList);
         }
 
         // If none of the passes above were executed, clear the textures to avoid stale data there.

@@ -164,9 +164,54 @@ RtxdiResources::RtxdiResources(
     giReservoirBufferDesc.canHaveUAVs = true;
     GIReservoirBuffer = device->createBuffer(giReservoirBufferDesc);
 
+    {
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(EnvGuidingData) * ENV_GUID_GRID_CELL_SIZE;
+            desc.structStride = sizeof(EnvGuidingData);
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.keepInitialState = true;
+            desc.debugName = "envGuidingMap";
+            desc.canHaveUAVs = true;
+            envGuidingMap = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.debugName = "envGuidingStats";
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            desc.keepInitialState = true;
+            desc.canHaveRawViews = true;
+            desc.canHaveUAVs = true;
+            desc.byteSize = sizeof(EnvGuidingStats);
+            envGuidingStats = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(EnvRadianceData) * ENV_GUID_MAX_TEMP_RAY_NUM;
+            desc.structStride = sizeof(EnvRadianceData);
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            desc.keepInitialState = true;
+            desc.debugName = "envRadianceBuffer";
+            desc.canHaveUAVs = true;
+            envRadianceBuffer = device->createBuffer(desc);
+            desc.debugName = "envRadianceBufferReordered";
+            envRadianceBufferReordered = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(EnvGuidingGridStats) * ENV_GUID_GRID_CELL_SIZE;
+            desc.structStride = sizeof(EnvGuidingGridStats);
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            desc.keepInitialState = true;
+            desc.debugName = "envGuidingGridStatsBuffer";
+            desc.canHaveUAVs = true;
+            envGuidingGridStatsBuffer = device->createBuffer(desc);
+        }
+    }
+
     // nvrhi::BufferDesc envVisibilityDataBufferDesc;
-    // envVisibilityDataBufferDesc.byteSize = sizeof(EnvVisibilityMapData) * ENV_GUID_GRID_CELL_SIZE;
-    // envVisibilityDataBufferDesc.structStride = sizeof(EnvVisibilityMapData);
+    // envVisibilityDataBufferDesc.byteSize = sizeof(EnvGuidingData) * ENV_GUID_GRID_CELL_SIZE;
+    // envVisibilityDataBufferDesc.structStride = sizeof(EnvGuidingData);
     // envVisibilityDataBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
     // envVisibilityDataBufferDesc.keepInitialState = true;
     // envVisibilityDataBufferDesc.debugName = "envVisibilityDataBuffer";
@@ -174,7 +219,7 @@ RtxdiResources::RtxdiResources(
     // envVisibilityDataBuffer = device->createBuffer(envVisibilityDataBufferDesc);
     
     // nvrhi::BufferDesc envVisibilityCdfBufferDesc;
-    // envVisibilityCdfBufferDesc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE * ENV_VISIBILITY_RESOLUTION * ENV_VISIBILITY_RESOLUTION;
+    // envVisibilityCdfBufferDesc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE * ENV_GUID_RESOLUTION * ENV_GUID_RESOLUTION;
     // envVisibilityCdfBufferDesc.format = nvrhi::Format::R32_UINT;
     // envVisibilityCdfBufferDesc.structStride = sizeof(uint);
     // envVisibilityCdfBufferDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;

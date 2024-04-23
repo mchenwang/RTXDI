@@ -25,7 +25,7 @@
 
 static const float c_MaxIndirectRadiance = 10;
 
-void GuidedSample(
+void GuidedSampleXX(
     in RAB_Surface surface,
     in float3 V,
     in float3 tangent,
@@ -48,7 +48,7 @@ void GuidedSample(
     vMF vmf = u_vMFBuffer[vmfId];
     if (vmf.kappa > 0.f)
     {
-        if (RAB_GetNextRandom(rng) < VMF_SAMPLE_FRACTION)
+        if (RAB_GetNextRandom(rng) < ENV_GUIDING_SAMPLE_FRACTION)
             sampleBrdf = false;
     }
 
@@ -132,7 +132,7 @@ void GuidedSample(
         if (vmf.kappa > 0.f)
         {
             vmfPdf = GetvMFPdf(vmf, o_L);
-            o_guidedSamplePdf = o_guidedSamplePdf * (1.f - VMF_SAMPLE_FRACTION) + vmfPdf * VMF_SAMPLE_FRACTION;
+            o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
         }
     }
     else
@@ -173,7 +173,7 @@ void GuidedSample(
 
         o_overall_PDF = diffuseLobe_PDF;
 
-        o_guidedSamplePdf = o_guidedSamplePdf * (1.f - VMF_SAMPLE_FRACTION) + vmfPdf * VMF_SAMPLE_FRACTION;
+        o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
         
         o_BRDF_over_PDF = brdf / o_guidedSamplePdf;
         
@@ -194,9 +194,80 @@ void GuidedSample(
     }
 
     // if (vmf.kappa > 0.f)
-    //     o_guidedSamplePdf = o_guidedSamplePdf * (1.f - VMF_SAMPLE_FRACTION) + vmfPdf * VMF_SAMPLE_FRACTION;
+    //     o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
 
     // o_BRDF_over_PDF = brdf / max(o_guidedSamplePdf, 0.001);
+}
+
+
+void GuidedSample(
+    in RAB_Surface surface,
+    in float3 V,
+    in float3 tangent,
+    in float3 bitangent,
+    inout RAB_RandomSamplerState rng,
+    out float3 o_L,
+    out float3 o_BRDF_over_PDF,
+    out bool o_isSpecularRay,
+    out float o_overall_PDF,
+    out float o_guidedSamplePdf)
+{
+    float2 Rand;
+    Rand.x = RAB_GetNextRandom(rng);
+    Rand.y = RAB_GetNextRandom(rng);
+    
+    bool isDeltaSurface = false;// surface.roughness == 0;
+
+    bool sampleBrdf = true;
+    uint gridId = ComputeSpatialHash(surface.worldPos);
+    EnvGuidingData gridGuidingData = t_EnvGuidingMap[gridId];
+
+    if (gridGuidingData.total > 0.9f)
+    {
+        if (RAB_GetNextRandom(rng) < ENV_GUIDING_SAMPLE_FRACTION)
+            sampleBrdf = false;
+    }
+
+    float3 brdf = 0.f;
+    float guidedPdf = 0.f;
+
+    if (sampleBrdf)
+    {
+        float solidAnglePdf;
+        float3 localDirection = sampleCosHemisphere(Rand, solidAnglePdf);
+        o_L = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
+        o_BRDF_over_PDF = 1.f;
+
+        const float diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
+
+        o_guidedSamplePdf = diffuseLobe_PDF;
+        o_overall_PDF = diffuseLobe_PDF;
+
+        if (gridGuidingData.total > 0.9f)
+        {
+            guidedPdf = GetEnvRadiancGuidedPdf(gridGuidingData, localDirection);
+            o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + guidedPdf * ENV_GUIDING_SAMPLE_FRACTION;
+        }
+    }
+    else
+    {
+        float3 localDirection;
+        SampleEnvRadianceMap(gridGuidingData, Rand, localDirection, guidedPdf);
+        o_L = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
+        
+        float diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
+        float diffuse_BRDF_over_PDF = 1.0;
+
+        brdf = diffuse_BRDF_over_PDF * diffuseLobe_PDF;// * surface.diffuseAlbedo;
+
+        o_guidedSamplePdf = diffuseLobe_PDF;
+        o_overall_PDF = diffuseLobe_PDF;
+
+        o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + guidedPdf * ENV_GUIDING_SAMPLE_FRACTION;
+        
+        o_BRDF_over_PDF = brdf / guidedPdf;
+
+    }
 }
 
 #if USE_RAY_QUERY
@@ -231,7 +302,7 @@ void RayGen()
     float3 V = normalize(g_Const.view.cameraDirectionOrPosition.xyz - surface.worldPos);
 
     bool isSpecularRay = false;
-    bool isDeltaSurface = surface.roughness == 0;
+    bool isDeltaSurface = false;// surface.roughness == 0;
     float3 BRDF_over_PDF = 0.f;
     float overall_PDF;
 
@@ -322,9 +393,6 @@ void RayGen()
     }
 
     ray.Origin = surface.worldPos;
-    u_DebugColor1[pixelPosition] = float4(BRDF_over_PDF, 1.f);
-
-    if (any(BRDF_over_PDF <= 0)) return;
 
     float3 radiance = 0;
     
@@ -453,14 +521,21 @@ void RayGen()
 
         if (g_Const.guidingFlag & GUIDING_FLAG_UPDATE_ENABLE)
         {
-            uint vmfId = ComputeSpatialHash(surface.worldPos);
+            EnvRadianceData data = (EnvRadianceData)0;
+            data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
+            data.gridId = ComputeSpatialHash(surface.worldPos);
+            data.dir = ToLocal(ray.Direction, tangent, bitangent, surface.normal);
 
-            vMFData data = (vMFData)0;
-            data.dir = ray.Direction;
-            data.pdf = guidedSamplePdf;
-            data.radianceLuminance = calcLuminance(payload.throughput * radiance * BRDF_over_PDF);
-
-            UpdatevMFData(vmfId, data);
+            uint index = u_EnvGuidingStats.Load(0);
+            if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+            {
+                u_EnvGuidingStats.InterlockedAdd(0, 1, index);
+                if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+                {
+                    u_EnvRandianceBuffer[index] = data;
+                    InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
+                }
+            }
         }
     }
 
@@ -503,8 +578,11 @@ void RayGen()
         u_SecondaryGBuffer[gbufferIndex] = secondaryGBufferData;
     }
 
+
     if (any(radiance > 0) || !g_Const.enableBrdfAdditiveBlend)
     {
+
+        u_DebugColor1[pixelPosition] = float4(radiance, 1.f);
         radiance *= payload.throughput;
 
         float3 diffuse = isSpecularRay ? 0.0 : radiance * BRDF_over_PDF;

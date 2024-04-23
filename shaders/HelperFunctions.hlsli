@@ -220,11 +220,55 @@ float3 ToWorld(in float3 dirLocal, in float3 normal)
     return normalize(tangent * dirLocal.x + bitangent * dirLocal.y + normal * dirLocal.z);
 }
 
+float3 ToWorld(in float3 dirLocal, in float3 tangent, in float3 bitangent, in float3 normal)
+{
+    return normalize(tangent * dirLocal.x + bitangent * dirLocal.y + normal * dirLocal.z);
+}
+
 float3 ToLocal(in float3 dir, in float3 normal)
 {
     float3 tangent, bitangent;
     branchlessONB(normal, tangent, bitangent);
     return normalize(float3(dot(dir, tangent), dot(dir, bitangent), dot(dir, normal)));
+}
+
+float3 ToLocal(in float3 dir, in float3 tangent, in float3 bitangent, in float3 normal)
+{
+    return normalize(float3(dot(dir, tangent), dot(dir, bitangent), dot(dir, normal)));
+}
+
+// Assume normalized input on +Z hemisphere.
+// Output is on [-1, 1].
+float2 EncodeHemioct(in float3 v)
+{
+    // Project the hemisphere onto the hemi-octahedron,
+    // and then into the xy plane
+    float2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + v.z));
+    // Rotate and scale the center diamond to the unit square
+    return float2(p.x + p.y, p.x - p.y);
+
+    // float phi = atan2(v.y, v.x);
+    // phi = phi < 0.f ? phi + c_pi * 2.f : phi;
+    // float theta = acos(v.z);
+
+    // float c_1_pi = 1.f / c_pi;
+    // return float2(phi * c_1_pi * 0.5f, theta * c_1_pi);
+}
+
+float3 DecodeHemioct(float2 e)
+{
+    // Rotate and scale the unit square back to the center diamond
+    float2 temp = float2(e.x + e.y, e.x - e.y) * 0.5;
+    float3 v = float3(temp, 1.0 - abs(temp.x) - abs(temp.y));
+    return normalize(v);
+
+    // float phi = e.x * 2.f * c_pi;
+    // float theta = e.y * c_pi;
+    // return float3(
+    //     sin(theta) * cos(phi),
+    //     sin(theta) * sin(phi),
+    //     cos(theta)
+    // );
 }
 
 #endif // HELPER_FUNCTIONS_HLSLI

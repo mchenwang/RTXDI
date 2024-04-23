@@ -39,4 +39,35 @@ void UpdatevMFData(in uint vmfId, in vMFData data)
     }
 }
 
+void SampleEnvRadianceMap(
+    in EnvGuidingData guidedData,
+    in float2 xi,
+    out float3 o_w,
+    out float pdf)
+{
+    uint index = 0;
+    float cdf = 0.f;
+    for (; index < ENV_GUID_RESOLUTION * ENV_GUID_RESOLUTION; ++index)
+    {
+        cdf += guidedData.luminance[index];
+        if (cdf > xi.x) break;
+    }
+    index = clamp(index, 0, ENV_GUID_RESOLUTION * ENV_GUID_RESOLUTION - 1);
+
+    xi.x = (xi.x - (cdf - guidedData.luminance[index])) / (guidedData.luminance[index]);
+
+    float2 tex = float2(index % ENV_GUID_RESOLUTION, floor(index * 1.f / ENV_GUID_RESOLUTION)) + xi;
+    tex /= float2(ENV_GUID_RESOLUTION, ENV_GUID_RESOLUTION);
+    o_w = DecodeHemioct(tex * 2.f - 1.f);
+    pdf = guidedData.luminance[index];
+}
+
+float GetEnvRadiancGuidedPdf(in EnvGuidingData guidedData, in float3 w)
+{
+    float2 tex = EncodeHemioct(w) * 0.5f + 0.5f;
+    int2 pixel = floor(tex * float2(ENV_GUID_RESOLUTION, ENV_GUID_RESOLUTION));
+    uint index = pixel.x + pixel.y * ENV_GUID_RESOLUTION;
+    return guidedData.luminance[index];
+}
+
 #endif

@@ -48,6 +48,12 @@ public:
     // nvrhi::BufferHandle envVisibilityDataBuffer;
     // nvrhi::BufferHandle envVisibilityCdfBuffer;
 
+    nvrhi::BufferHandle envGuidingMap;
+    nvrhi::BufferHandle envGuidingStats;
+    nvrhi::BufferHandle envRadianceBuffer;
+    nvrhi::BufferHandle envRadianceBufferReordered;
+    nvrhi::BufferHandle envGuidingGridStatsBuffer;
+
     nvrhi::BufferHandle vMFBuffer;
     nvrhi::BufferHandle vMFDataBuffer;
 

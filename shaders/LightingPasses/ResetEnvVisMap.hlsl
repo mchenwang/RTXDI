@@ -1,6 +1,6 @@
 #include "../ShaderParameters.h"
 
-RWStructuredBuffer<EnvVisibilityMapData> u_EnvVisiblityDataMap : register(u0);
+RWStructuredBuffer<EnvGuidingData> u_EnvVisiblityDataMap : register(u0);
 RWBuffer<float> u_EnvVisiblityCdfMap : register(u1);
 
 [numthreads(32, 1, 1)] 

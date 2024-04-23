@@ -432,9 +432,9 @@ void UserInterface::SamplingSettings()
     m_ui.guidingFlag |= (s_GuidingDIMIS ? (1 << 4) : 0);
     m_ui.guidingFlag |= (s_GuidingGIMIS ? (1 << 5) : 0);
 
-    if (ImGui::Button("Reset VMF"))
+    if (ImGui::Button("Reset Guiding Data"))
     {
-        m_ui.vmfResetFlag = true;
+        m_ui.guidingResetFlag = true;
     }
 
     ImGui::Separator();

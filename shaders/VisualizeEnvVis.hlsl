@@ -9,7 +9,7 @@ ConstantBuffer<EnvVisibilityVisualizationConstants> g_Const : register(b0);
 Texture2D<float> t_GBufferDepth : register(t0);
 Texture2D<uint> t_GBufferNormals : register(t1);
 
-// StructuredBuffer<EnvVisibilityMapData> t_EnvVisiblityDataMap : register(t2);
+// StructuredBuffer<EnvGuidingData> t_EnvVisiblityDataMap : register(t2);
 // Buffer<float> t_EnvVisiblityCdfMap : register(t3);
 
 RWTexture2D<float4> t_DebugColor1 : register(u0);
@@ -89,10 +89,10 @@ float4 main(float4 i_position : SV_Position) : SV_Target
     }
     else if (g_Const.visualizationMode == VIS_MODE_ENV_VIS_MAP)
     {
-        // int2 map_id = floor(float2(pixelPos.x / ENV_VISIBILITY_RESOLUTION, pixelPos.y / ENV_VISIBILITY_RESOLUTION));
+        // int2 map_id = floor(float2(pixelPos.x / ENV_GUID_RESOLUTION, pixelPos.y / ENV_GUID_RESOLUTION));
         // uint map_index = map_id.x + map_id.y * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS;
-        // int2 inner_id = pixelPos % ENV_VISIBILITY_RESOLUTION;
-        // uint inner_index = inner_id.x + inner_id.y * ENV_VISIBILITY_RESOLUTION;
+        // int2 inner_id = pixelPos % ENV_GUID_RESOLUTION;
+        // uint inner_index = inner_id.x + inner_id.y * ENV_GUID_RESOLUTION;
 
         // if (t_EnvVisiblityDataMap[map_index].total_cnt > 0)
         //     result = t_EnvVisiblityDataMap[map_index].local_cnt[inner_index] * 1.f / t_EnvVisiblityDataMap[map_index].total_cnt;

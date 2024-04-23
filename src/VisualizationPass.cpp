@@ -148,16 +148,16 @@ void VisualizationPass::Render(
             const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
             constants.resolutionScale.x = 1.f;
             constants.resolutionScale.y = 1.f;
-            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f) / upscaledViewport.width();
-            // constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION * 1.f)  / upscaledViewport.height();
+            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION * 1.f) / upscaledViewport.width();
+            // constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION * 1.f)  / upscaledViewport.height();
             // state.setViewport(
             //     nvrhi::ViewportState()
             //     .addViewport(
-            //         nvrhi::Viewport(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION, 
-            //                         ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION))
+            //         nvrhi::Viewport(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION, 
+            //                         ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION))
             //     .addScissorRect(
-            //         nvrhi::Rect(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION, 
-            //                     ENV_GUID_GRID_DIMENSIONS * ENV_VISIBILITY_RESOLUTION)));
+            //         nvrhi::Rect(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION, 
+            //                     ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION)));
             // constants.resolutionScale.x = 1.f;
             // constants.resolutionScale.y = 1.f;
         }

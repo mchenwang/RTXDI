@@ -98,7 +98,7 @@
 // void UpdateVisibilityMap(RAB_Surface surface, float3 dir, bool visible)
 // {
 //     if (!visible) return;
-    
+
 //     uint hashId = ComputeSpatialHash(surface.worldPos, 0.5f);
 
 //     float3 tangent, bitangent;

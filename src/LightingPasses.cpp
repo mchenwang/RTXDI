@@ -144,6 +144,10 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(15),
         nvrhi::BindingLayoutItem::Texture_UAV(16),
         nvrhi::BindingLayoutItem::Texture_UAV(17),
+        nvrhi::BindingLayoutItem::StructuredBuffer_SRV(26),
+        nvrhi::BindingLayoutItem::RawBuffer_UAV(18),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(19),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20)
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
@@ -215,7 +219,10 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::StructuredBuffer_UAV(15, resources.vMFDataBuffer),
             nvrhi::BindingSetItem::Texture_UAV(16, resources.debugTexture1),
             nvrhi::BindingSetItem::Texture_UAV(17, resources.debugTexture2),
-            // nvrhi::BindingSetItem::TypedBuffer_UAV(15, resources.envVisibilityCntBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(26, resources.envGuidingMap),
+            nvrhi::BindingSetItem::RawBuffer_UAV(18, resources.envGuidingStats),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.envRadianceBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.envGuidingGridStatsBuffer)
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);

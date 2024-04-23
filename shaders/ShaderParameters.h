@@ -60,21 +60,6 @@
 #define VIS_MODE_ENV_VIS_DEBUG_1     18
 #define VIS_MODE_ENV_VIS_DEBUG_2     19
 
-#define ENV_VISIBILITY_RESOLUTION    6
-#define ENV_GUID_GRID_DIMENSIONS     128
-#define ENV_GUID_GRID_CELL_SIZE      (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS)
-
-#define GUIDING_FLAG_ENABLE         1
-#define GUIDING_FLAG_GUIDE_DI       (1 << 1)
-#define GUIDING_FLAG_GUIDE_GI       (1 << 2)
-#define GUIDING_FLAG_UPDATE_ENABLE  (1 << 3)
-#define GUIDING_FLAG_DI_BRDF_MIS    (1 << 4)
-#define GUIDING_FLAG_GI_BRDF_MIS    (1 << 5)
-
-// #define ENV_GUID_FLAG_DI        1
-// #define ENV_GUID_FLAG_GI        (1 << 1)
-// #define ENV_GUID_FLAG_UPDATE    (1 << 2)
-
 #define BACKGROUND_DEPTH 65504.f
 
 #define RAY_COUNT_TRACED(index) ((index) * 2)
@@ -341,10 +326,45 @@ struct PolymorphicLightInfo
     uint padding;
 };
 
-struct EnvVisibilityMapData
+#define ENV_GUID_RESOLUTION          6
+#define ENV_GUID_GRID_DIMENSIONS     128
+#define ENV_GUID_GRID_CELL_SIZE      (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS)
+#define ENV_GUID_MAX_TEMP_RAY_NUM    1000000
+#define ENV_GUIDING_SAMPLE_FRACTION  0.9f
+
+#define GUIDING_FLAG_ENABLE         1
+#define GUIDING_FLAG_GUIDE_DI       (1 << 1)
+#define GUIDING_FLAG_GUIDE_GI       (1 << 2)
+#define GUIDING_FLAG_UPDATE_ENABLE  (1 << 3)
+#define GUIDING_FLAG_DI_BRDF_MIS    (1 << 4)
+#define GUIDING_FLAG_GI_BRDF_MIS    (1 << 5)
+
+struct EnvGuidingData
 {
-    uint local_cnt[36];
-    uint total_cnt;
+    float luminance[ENV_GUID_RESOLUTION * ENV_GUID_RESOLUTION];
+    float total;
+    uint3 pad;
+};
+
+struct EnvGuidingStats
+{
+    uint rayCnt;
+    uint offset;
+    uint2 pad;
+};
+
+struct EnvGuidingGridStats
+{
+    uint rayCnt;
+    uint offset;
+    uint2 pad;
+};
+
+struct EnvRadianceData
+{
+    float radianceLuminance;
+    float3 dir;
+    uint gridId;
     uint3 pad;
 };
 
@@ -360,7 +380,6 @@ struct EnvVisibilityVisualizationConstants
 };
 
 #define VMF_MAX_DATA_NUM 20
-#define VMF_SAMPLE_FRACTION 0.9f
 
 struct vMF
 {

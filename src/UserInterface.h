@@ -141,7 +141,8 @@ struct UIData
     DirectLightingMode directLightingMode = DirectLightingMode::Brdf;
     IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
     uint32_t guidingFlag = 0;
-    bool vmfResetFlag = false;
+    bool guidingResetFlag = false;
+    
     ibool enableAnimations = true;
     float animationSpeed = 1.f;
     int environmentMapDirty = 0; // 1 -> needs to be rendered; 2 -> passes/textures need to be created
