@@ -67,7 +67,9 @@ float GetEnvRadiancGuidedPdf(in EnvGuidingData guidedData, in float3 w)
     float2 tex = EncodeHemioct(w) * 0.5f + 0.5f;
     int2 pixel = floor(tex * float2(ENV_GUID_RESOLUTION, ENV_GUID_RESOLUTION));
     uint index = pixel.x + pixel.y * ENV_GUID_RESOLUTION;
-    return guidedData.luminance[index];
+    if (index >=0 && index < ENV_GUID_RESOLUTION * ENV_GUID_RESOLUTION)
+        return guidedData.luminance[index];
+    return 0.f;
 }
 
 #endif

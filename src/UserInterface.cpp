@@ -397,7 +397,7 @@ void UserInterface::SamplingSettings()
     static bool s_GuidingDI = true;
     static bool s_GuidingGI = false;
     static bool s_GuidingUpdate = true;
-    static bool s_GuidingDIMIS = false;
+    static bool s_GuidingDIMIS = true;
     static bool s_GuidingGIMIS = false;
     
     ImGui::Checkbox("Enable Guiding", &s_GuidingEnable);

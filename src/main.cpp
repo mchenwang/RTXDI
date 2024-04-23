@@ -221,8 +221,8 @@ public:
             m_BindlessLayout = GetDevice()->createBindlessLayout(bindlessLayoutDesc);
         }
 
-        // std::filesystem::path scenePath = "/media/test.json";
-        std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
+        std::filesystem::path scenePath = "/media/test.json";
+        // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
         // std::filesystem::path scenePath = "/media/Arcade/Arcade.gltf";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
