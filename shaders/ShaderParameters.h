@@ -236,7 +236,8 @@ struct ResamplingConstants
     uint enableBrdfIndirect;
     uint enableBrdfAdditiveBlend;    
     uint enableAccumulation; // StoreShadingOutput
-    uint pad1;
+
+    float sceneGridScale;
 
     SceneConstants sceneConstants;
 
@@ -372,11 +373,12 @@ struct EnvVisibilityVisualizationConstants
 {
     PlanarViewConstants view;
 
-    GridParameters gridParameters;
-
     uint visualizationMode;
     float2 resolutionScale;
-    uint cntFlag;
+    float sceneGridScale;
+
+    uint flag;
+    uint3 pad;
 };
 
 #define VMF_MAX_DATA_NUM 20

@@ -25,181 +25,6 @@
 
 static const float c_MaxIndirectRadiance = 10;
 
-void GuidedSampleXX(
-    in RAB_Surface surface,
-    in float3 V,
-    in float3 tangent,
-    in float3 bitangent,
-    inout RAB_RandomSamplerState rng,
-    out float3 o_L,
-    out float3 o_BRDF_over_PDF,
-    out bool o_isSpecularRay,
-    out float o_overall_PDF,
-    out float o_guidedSamplePdf)
-{
-    float2 Rand;
-    Rand.x = RAB_GetNextRandom(rng);
-    Rand.y = RAB_GetNextRandom(rng);
-    
-    bool isDeltaSurface = surface.roughness == 0;
-
-    bool sampleBrdf = true;
-    uint vmfId = ComputeSpatialHash(surface.worldPos);
-    vMF vmf = u_vMFBuffer[vmfId];
-    if (vmf.kappa > 0.f)
-    {
-        if (RAB_GetNextRandom(rng) < ENV_GUIDING_SAMPLE_FRACTION)
-            sampleBrdf = false;
-    }
-
-    float3 brdf = 0.f;
-    float vmfPdf = 0.f;
-
-    if (sampleBrdf)
-    {
-        // float3 specularDirection;
-        // float3 specular_BRDF_over_PDF;
-        // {
-            // float3 Ve = float3(dot(V, tangent), dot(V, bitangent), dot(V, surface.normal));
-            // float3 He = sampleGGX_VNDF(Ve, surface.roughness, Rand);
-            // float3 H = isDeltaSurface ? surface.normal : normalize(He.x * tangent + He.y * bitangent + He.z * surface.normal);
-            // specularDirection = reflect(-V, H);
-
-            // float HoV = saturate(dot(H, V));
-            // float NoV = saturate(dot(surface.normal, V));
-            // float3 F = Schlick_Fresnel(surface.specularF0, HoV);
-            // float G1 = isDeltaSurface ? 1.0 : (NoV > 0) ? G1_Smith(surface.roughness, NoV) : 0;
-            // specular_BRDF_over_PDF = F * G1;
-        // }
-
-        // float3 diffuseDirection;
-        // float diffuse_BRDF_over_PDF;
-        // {
-            // float solidAnglePdf;
-            // float3 localDirection = sampleCosHemisphere(Rand, solidAnglePdf);
-            // diffuseDirection = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
-            // diffuse_BRDF_over_PDF = 1.0;
-        // }
-
-        // float specular_PDF = saturate(calcLuminance(specular_BRDF_over_PDF) /
-            // calcLuminance(specular_BRDF_over_PDF + diffuse_BRDF_over_PDF * surface.diffuseAlbedo));
-
-        // o_isSpecularRay = RAB_GetNextRandom(rng) < specular_PDF;
-
-        // float specularLobe_PDF;
-        // float diffuseLobe_PDF;
-
-        // if (o_isSpecularRay)
-        // {
-            // o_L = specularDirection;
-
-            // specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, o_L);
-            // diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
-            
-            // brdf = specular_BRDF_over_PDF * specularLobe_PDF;
-            // o_guidedSamplePdf = specularLobe_PDF * specular_PDF;
-
-            // o_BRDF_over_PDF = specular_BRDF_over_PDF / specular_PDF;
-        // }
-        // else
-        // {
-            // o_L = diffuseDirection;
-            
-            // specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, o_L);
-            // diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
-
-            // brdf = diffuse_BRDF_over_PDF * diffuseLobe_PDF;
-            // o_guidedSamplePdf = diffuseLobe_PDF * (1.f - specular_PDF);
-
-            // o_BRDF_over_PDF = diffuse_BRDF_over_PDF / (1.f - specular_PDF);
-        // }
-
-        // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
-        // o_overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
-
-        
-        float solidAnglePdf;
-        float3 localDirection = sampleCosHemisphere(Rand, solidAnglePdf);
-        o_L = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
-        o_BRDF_over_PDF = 1.f;
-
-        const float diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
-
-        o_guidedSamplePdf = diffuseLobe_PDF;
-
-        o_overall_PDF = diffuseLobe_PDF;
-
-        if (vmf.kappa > 0.f)
-        {
-            vmfPdf = GetvMFPdf(vmf, o_L);
-            o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
-        }
-    }
-    else
-    {
-        SamplevMF(vmf, Rand, o_L, vmfPdf);
-
-        // float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, o_L);
-        float diffuseLobe_PDF = saturate(dot(o_L, surface.normal)) / c_pi;
-
-        // float3 specularDirection = reflect(-V, surface.normal);
-        // o_isSpecularRay = (abs(dot(specularDirection, o_L) - 1.f) < 1e-5);
-        // o_isSpecularRay = isDeltaSurface;
-        
-        // float3 specular_BRDF_over_PDF;
-        // {
-            // float3 H = normalize(o_L + V);
-            // float HoV = saturate(dot(H, V));
-            // float NoV = saturate(dot(surface.normal, V));
-            // float3 F = Schlick_Fresnel(surface.specularF0, HoV);
-            // float G1 = isDeltaSurface ? 1.0 : (NoV > 0) ? G1_Smith(surface.roughness, NoV) : 0;
-            // specular_BRDF_over_PDF = F * G1;
-        // }
-
-        float diffuse_BRDF_over_PDF = 1.0;
-
-        // float specular_PDF = saturate(calcLuminance(specular_BRDF_over_PDF) /
-        //     calcLuminance(specular_BRDF_over_PDF + diffuse_BRDF_over_PDF * surface.diffuseAlbedo));
-
-        // brdf = specular_BRDF_over_PDF * specularLobe_PDF + diffuse_BRDF_over_PDF * diffuseLobe_PDF;
-        // o_guidedSamplePdf = diffuseLobe_PDF * (1.f - specular_PDF) + specularLobe_PDF * specular_PDF;
-        // o_guidedSamplePdf *= vmfPdf;
-
-        brdf = diffuse_BRDF_over_PDF * diffuseLobe_PDF;// * surface.diffuseAlbedo;
-        
-        // o_BRDF_over_PDF = brdf / max(o_guidedSamplePdf, 0.001);
-
-        o_guidedSamplePdf = diffuseLobe_PDF;
-
-        o_overall_PDF = diffuseLobe_PDF;
-
-        o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
-        
-        o_BRDF_over_PDF = brdf / o_guidedSamplePdf;
-        
-        // if (o_isSpecularRay)
-        // {
-            // brdf = specular_BRDF_over_PDF * specularLobe_PDF;
-            // o_guidedSamplePdf = specularLobe_PDF * vmfPdf;
-
-            // o_BRDF_over_PDF = specular_BRDF_over_PDF / vmfPdf;
-        // }
-        // else
-        // {
-            // brdf = diffuse_BRDF_over_PDF * diffuseLobe_PDF;
-            // o_guidedSamplePdf = diffuseLobe_PDF * vmfPdf;
-
-            // o_BRDF_over_PDF = diffuse_BRDF_over_PDF / vmfPdf;
-        // }
-    }
-
-    // if (vmf.kappa > 0.f)
-    //     o_guidedSamplePdf = o_guidedSamplePdf * (1.f - ENV_GUIDING_SAMPLE_FRACTION) + vmfPdf * ENV_GUIDING_SAMPLE_FRACTION;
-
-    // o_BRDF_over_PDF = brdf / max(o_guidedSamplePdf, 0.001);
-}
-
-
 void GuidedSample(
     in RAB_Surface surface,
     in float3 V,
@@ -217,11 +42,21 @@ void GuidedSample(
     Rand.x = RAB_GetNextRandom(rng);
     Rand.y = RAB_GetNextRandom(rng);
     
-    const bool isDeltaSurface = false;
+    const bool isDeltaSurface = false;// = surface.roughness == 0;
 
     bool sampleBrdf = true;
-    uint gridId = ComputeSpatialHash(surface.worldPos);
-    EnvGuidingData gridGuidingData = t_EnvGuidingMap[gridId];
+    CacheEntry gridId;// ComputeSpatialHash(surface.worldPos, surface.normal);
+    EnvGuidingData gridGuidingData = (EnvGuidingData)0;
+
+    if (FindEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
+    {
+        gridGuidingData = t_EnvGuidingMap[gridId];
+        u_DebugColor1[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
+    }
+    else 
+    {
+        u_DebugColor1[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
+    }
 
     if (gridGuidingData.total > 0.001f)
     {
@@ -231,7 +66,6 @@ void GuidedSample(
                 sampleBrdf = false;
         }
         else sampleBrdf = false;
-        
     }
 
     float3 brdf = 0.f;
@@ -426,94 +260,92 @@ void RayGen()
     float overall_PDF;
 
     float guidedSamplePdf = 0.f;
-
-    if (g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI)
+    if (!isDeltaSurface)
     {
-        if (!isDeltaSurface)
+        if (g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI)
         {
             GuidedSample(surface, V, tangent, bitangent, rng, 
                 ray.Direction, BRDF_over_PDF, isSpecularRay, overall_PDF, guidedSamplePdf, pixelPosition);
         }
         else
         {
-            isSpecularRay = true;
-            float3 specularDirection = reflect(-V, surface.normal);
-            float3 specular_BRDF_over_PDF = Schlick_Fresnel(surface.specularF0, saturate(dot(surface.normal, V)));
+            float2 Rand;
+            Rand.x = RAB_GetNextRandom(rng);
+            Rand.y = RAB_GetNextRandom(rng);
 
-            ray.Direction = specularDirection;
-            BRDF_over_PDF = specular_BRDF_over_PDF;
+            float3 specularDirection;
+            float3 specular_BRDF_over_PDF;
+            {
+                float3 Ve = float3(dot(V, tangent), dot(V, bitangent), dot(V, surface.normal));
+                float3 He = sampleGGX_VNDF(Ve, surface.roughness, Rand);
+                float3 H = isDeltaSurface ? surface.normal : normalize(He.x * tangent + He.y * bitangent + He.z * surface.normal);
+                specularDirection = reflect(-V, H);
 
-            // const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
+                float HoV = saturate(dot(H, V));
+                float NoV = saturate(dot(surface.normal, V));
+                float3 F = Schlick_Fresnel(surface.specularF0, HoV);
+                float G1 = isDeltaSurface ? 1.0 : (NoV > 0) ? G1_Smith(surface.roughness, NoV) : 0;
+                specular_BRDF_over_PDF = F * G1;
+            }
+
+            float3 diffuseDirection;
+            float diffuse_BRDF_over_PDF;
+            {
+                float solidAnglePdf;
+                float3 localDirection = sampleCosHemisphere(Rand, solidAnglePdf);
+                diffuseDirection = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
+                diffuse_BRDF_over_PDF = 1.0;
+            }
+
+            float specular_PDF = saturate(calcLuminance(specular_BRDF_over_PDF) /
+                calcLuminance(specular_BRDF_over_PDF + diffuse_BRDF_over_PDF * surface.diffuseAlbedo));
+
+            isSpecularRay = RAB_GetNextRandom(rng) < specular_PDF;
+
+            if (isSpecularRay)
+            {
+                ray.Direction = specularDirection;
+                BRDF_over_PDF = specular_BRDF_over_PDF / specular_PDF;
+            }
+            else
+            {
+                ray.Direction = diffuseDirection;
+                BRDF_over_PDF = diffuse_BRDF_over_PDF / (1.0 - specular_PDF);
+            }
+
+            const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
             const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
 
-            guidedSamplePdf = 1.f;
+            if (isSpecularRay)
+            {
+                guidedSamplePdf = specular_PDF * specularLobe_PDF;
+            }
+            else
+            {
+                guidedSamplePdf = (1.f - specular_PDF) * diffuseLobe_PDF;
+            }
 
             // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
-            overall_PDF = diffuseLobe_PDF;
+            overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
         }
     }
     else
     {
-        float2 Rand;
-        Rand.x = RAB_GetNextRandom(rng);
-        Rand.y = RAB_GetNextRandom(rng);
+        isSpecularRay = true;
+        float3 specularDirection = reflect(-V, surface.normal);
+        float3 specular_BRDF_over_PDF = Schlick_Fresnel(surface.specularF0, saturate(dot(surface.normal, V)));
 
-        float3 specularDirection;
-        float3 specular_BRDF_over_PDF;
-        {
-            float3 Ve = float3(dot(V, tangent), dot(V, bitangent), dot(V, surface.normal));
-            float3 He = sampleGGX_VNDF(Ve, surface.roughness, Rand);
-            float3 H = isDeltaSurface ? surface.normal : normalize(He.x * tangent + He.y * bitangent + He.z * surface.normal);
-            specularDirection = reflect(-V, H);
+        ray.Direction = specularDirection;
+        BRDF_over_PDF = specular_BRDF_over_PDF;
 
-            float HoV = saturate(dot(H, V));
-            float NoV = saturate(dot(surface.normal, V));
-            float3 F = Schlick_Fresnel(surface.specularF0, HoV);
-            float G1 = isDeltaSurface ? 1.0 : (NoV > 0) ? G1_Smith(surface.roughness, NoV) : 0;
-            specular_BRDF_over_PDF = F * G1;
-        }
-
-        float3 diffuseDirection;
-        float diffuse_BRDF_over_PDF;
-        {
-            float solidAnglePdf;
-            float3 localDirection = sampleCosHemisphere(Rand, solidAnglePdf);
-            diffuseDirection = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
-            diffuse_BRDF_over_PDF = 1.0;
-        }
-
-        float specular_PDF = saturate(calcLuminance(specular_BRDF_over_PDF) /
-            calcLuminance(specular_BRDF_over_PDF + diffuse_BRDF_over_PDF * surface.diffuseAlbedo));
-
-        isSpecularRay = RAB_GetNextRandom(rng) < specular_PDF;
-
-        if (isSpecularRay)
-        {
-            ray.Direction = specularDirection;
-            BRDF_over_PDF = specular_BRDF_over_PDF / specular_PDF;
-        }
-        else
-        {
-            ray.Direction = diffuseDirection;
-            BRDF_over_PDF = diffuse_BRDF_over_PDF / (1.0 - specular_PDF);
-        }
-
-        const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
+        // const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
         const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
 
-        if (isSpecularRay)
-        {
-            guidedSamplePdf = specular_PDF * specularLobe_PDF;
-        }
-        else
-        {
-            guidedSamplePdf = (1.f - specular_PDF) * diffuseLobe_PDF;
-        }
+        guidedSamplePdf = 1.f;
 
         // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
-        overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
+        overall_PDF = diffuseLobe_PDF;
     }
-    // u_DebugColor1[pixelPosition] = float4(isSpecularRay, isDeltaSurface, 0.f, 1.f);
 
     if (dot(surface.geoNormal, ray.Direction) <= 0.0)
     {
@@ -647,26 +479,35 @@ void RayGen()
         secondarySurface.specularF0 = 0;
         secondarySurface.roughness = 0;
         secondarySurface.isEnvironmentMap = true;
+    }
 
         if (g_Const.guidingFlag & GUIDING_FLAG_UPDATE_ENABLE)
         {
-            EnvRadianceData data = (EnvRadianceData)0;
-            data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
-            data.gridId = ComputeSpatialHash(surface.worldPos);
-            data.dir = ToLocal(ray.Direction, tangent, bitangent, surface.normal);
-
-            uint index = u_EnvGuidingStats.Load(0);
-            if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+            CacheEntry gridId;
+            if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
             {
-                u_EnvGuidingStats.InterlockedAdd(0, 1, index);
+                EnvRadianceData data = (EnvRadianceData)0;
+                data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
+                data.gridId = gridId;
+                data.dir = ToLocal(ray.Direction, tangent, bitangent, surface.normal);
+
+                uint index = u_EnvGuidingStats.Load(0);
                 if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
                 {
-                    u_EnvRandianceBuffer[index] = data;
-                    InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
+                    u_EnvGuidingStats.InterlockedAdd(0, 1, index);
+                    if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+                    {
+                        u_EnvRandianceBuffer[index] = data;
+                        InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
+                    }
                 }
+                u_DebugColor2[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
+            }
+            else 
+            {
+                u_DebugColor2[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
             }
         }
-    }
 
     if (g_Const.enableBrdfIndirect)
     {

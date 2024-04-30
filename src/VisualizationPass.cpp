@@ -80,13 +80,15 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
 
         auto bindingDesc = nvrhi::BindingSetDesc()
             .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
-            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferNormals))
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferGeoNormals))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
             .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer))
             .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.vMFBuffer))
             .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.vMFDataBuffer))
-            .addItem(nvrhi::BindingSetItem::TypedBuffer_UAV(4, rtxdiResources.debugBuffer1));
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(4, rtxdiResources.gridHashMapBuffer))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(5, rtxdiResources.gridHashMapLockBuffer))
+            ;
 
         nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_EnvVisLayout, m_EnvVisSet);
     }
@@ -130,16 +132,13 @@ void VisualizationPass::Render(
             .setFramebuffer(framebuffer);
 
         static float3 s_cameraPositionPrev = renderView.GetViewOrigin();
-        static bool s_cntFlag = true;
+        static uint s_flag = 0;
         
         EnvVisibilityVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
-        constants.gridParameters.cameraPosition = renderView.GetViewOrigin();
-        constants.gridParameters.cameraPositionPrev = s_cameraPositionPrev;
-        constants.gridParameters.sceneScale = 1.f;
-        constants.gridParameters.logarithmBase = 2.f;
-        constants.cntFlag = s_cntFlag;
+        constants.sceneGridScale = 1.f;
+        constants.flag = s_flag++;
 
         if (visualizationMode == VIS_MODE_ENV_VIS_MAP)
         {
@@ -169,8 +168,6 @@ void VisualizationPass::Render(
             constants.resolutionScale.x = renderViewport.width() / upscaledViewport.width();
             constants.resolutionScale.y = renderViewport.height() / upscaledViewport.height();
         }
-
-        s_cntFlag = false;
 
         commandList->writeBuffer(m_EnvVisConstantBuffer, &constants, sizeof(constants));
 

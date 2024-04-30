@@ -43,11 +43,6 @@ public:
     nvrhi::TextureHandle LocalLightPdfTexture;
     nvrhi::BufferHandle GIReservoirBuffer;
 
-    // nvrhi::BufferHandle envVisibilityBuffer;
-    // nvrhi::BufferHandle envVisibilityCntBuffer;
-    // nvrhi::BufferHandle envVisibilityDataBuffer;
-    // nvrhi::BufferHandle envVisibilityCdfBuffer;
-
     nvrhi::BufferHandle envGuidingMap;
     nvrhi::BufferHandle envGuidingStats;
     nvrhi::BufferHandle envRadianceBuffer;
@@ -60,6 +55,9 @@ public:
     nvrhi::TextureHandle debugTexture1;
     nvrhi::TextureHandle debugTexture2;
     nvrhi::BufferHandle debugBuffer1;
+
+    nvrhi::BufferHandle gridHashMapBuffer;
+    nvrhi::BufferHandle gridHashMapLockBuffer;
 
     RtxdiResources(
         nvrhi::IDevice* device, 

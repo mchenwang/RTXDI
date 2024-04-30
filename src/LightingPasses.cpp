@@ -147,7 +147,9 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::StructuredBuffer_SRV(26),
         nvrhi::BindingLayoutItem::RawBuffer_UAV(18),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(19),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20)
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(21),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(22),
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
@@ -222,7 +224,9 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::StructuredBuffer_SRV(26, resources.envGuidingMap),
             nvrhi::BindingSetItem::RawBuffer_UAV(18, resources.envGuidingStats),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.envRadianceBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.envGuidingGridStatsBuffer)
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.envGuidingGridStatsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.gridHashMapBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.gridHashMapLockBuffer),
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);
@@ -455,6 +459,8 @@ void LightingPasses::FillResamplingConstants(
     const rtxdi::ImportanceSamplingContext& isContext)
 {
     const RTXDI_LightBufferParameters& lightBufferParameters = isContext.getLightBufferParameters();
+
+    constants.sceneGridScale = 1.f;
 
     constants.enablePreviousTLAS = lightingSettings.enablePreviousTLAS;
     constants.denoiserMode = lightingSettings.denoiserMode;

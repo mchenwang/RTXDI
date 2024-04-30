@@ -279,6 +279,26 @@ RtxdiResources::RtxdiResources(
         desc.canHaveUAVs = true;
         debugBuffer1 = device->createBuffer(desc);
     }
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(uint64_t) * ENV_GUID_GRID_CELL_SIZE;
+        desc.structStride = sizeof(uint64_t);
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "gridHashMapBuffer";
+        desc.canHaveUAVs = true;
+        gridHashMapBuffer = device->createBuffer(desc);
+    }
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(uint32_t) * ENV_GUID_GRID_CELL_SIZE;
+        desc.structStride = sizeof(uint32_t);
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "gridHashMapLockBuffer";
+        desc.canHaveUAVs = true;
+        gridHashMapLockBuffer = device->createBuffer(desc);
+    }
 }
 
 void RtxdiResources::InitializeNeighborOffsets(nvrhi::ICommandList* commandList, uint32_t neighborOffsetCount)

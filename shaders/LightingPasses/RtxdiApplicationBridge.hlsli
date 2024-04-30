@@ -99,6 +99,12 @@ RWByteAddressBuffer u_EnvGuidingStats : register(u18);
 RWStructuredBuffer<EnvRadianceData> u_EnvRandianceBuffer : register(u19);
 RWStructuredBuffer<EnvGuidingGridStats> u_EnvGuidingGridStatsBuffer : register(u20);
 
+RWStructuredBuffer<uint64_t> u_GridHashMap : register(u21);
+// RWStructuredBuffer<uint> u_GridHashMap : register(u21);
+RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u22);
+
+#include "HashGridHelper.hlsli"
+
 #define RTXDI_RIS_BUFFER u_RisBuffer
 #define RTXDI_LIGHT_RESERVOIR_BUFFER u_LightReservoirs
 #define RTXDI_NEIGHBOR_OFFSETS_BUFFER t_NeighborOffsets

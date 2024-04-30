@@ -2,22 +2,21 @@
 
 #include "ShaderParameters.h"
 #include "HelperFunctions.hlsli"
+
+RWStructuredBuffer<uint64_t> u_GridHashMap : register(u4);
+RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u5);
+
 #include "LightingPasses/HashGridHelper.hlsli"
-// #include "LightingPasses/EnvVisibilityGuid.hlsli"
 
 ConstantBuffer<EnvVisibilityVisualizationConstants> g_Const : register(b0);
 Texture2D<float> t_GBufferDepth : register(t0);
-Texture2D<uint> t_GBufferNormals : register(t1);
-
-// StructuredBuffer<EnvGuidingData> t_EnvVisiblityDataMap : register(t2);
-// Buffer<float> t_EnvVisiblityCdfMap : register(t3);
+Texture2D<uint> t_GBufferGeoNormals : register(t1);
 
 RWTexture2D<float4> t_DebugColor1 : register(u0);
 RWTexture2D<float4> t_DebugColor2 : register(u1);
 
 RWStructuredBuffer<vMF> u_vMFBuffer : register(u2);
 RWStructuredBuffer<vMFData> u_vMFDataBuffer : register(u3);
-RWBuffer<uint> u_HashIDCntBuffer : register(u4);
 
 static const uint s_random_colors_size = 11;
 static const float3 s_random_colors[s_random_colors_size] = {
@@ -38,15 +37,15 @@ float3 GetRandomColor(uint index)
 	return s_random_colors[index % s_random_colors_size];
 }
 
-float3 GetColorFromHash32(uint hash)
-{
-    float3 color;
-    color.x = ((hash >>  0) & 0xf) / 15.0f;
-    color.y = ((hash >> 4) & 0xf) / 15.0f;
-    color.z = ((hash >> 8) & 0x1f) / 31.0f;
+// float3 GetColorFromHash32(uint hash)
+// {
+//     float3 color;
+//     color.x = ((hash >>  0) & 0x7f) / 127.0f;
+//     color.y = ((hash >> 7) & 0x7f) / 127.0f;
+//     color.z = ((hash >> 14) & 0x7f) / 127.0f;
 
-    return color;
-}
+//     return color;
+// }
 
 float3 viewDepthToWorldPos(
     PlanarViewConstants view,
@@ -73,19 +72,20 @@ float4 main(float4 i_position : SV_Position) : SV_Target
     if (g_Const.visualizationMode == VIS_MODE_WS_GRID)
     {
         float viewDepth = t_GBufferDepth[pixelPos];
-        float3 normal = octToNdirUnorm32(t_GBufferNormals[pixelPos]);
+        float3 normal = octToNdirUnorm32(t_GBufferGeoNormals[pixelPos]);
         float3 wsPos = float3(0.f, 0.f, 0.f);
         if(viewDepth == BACKGROUND_DEPTH) return float4(0.f, 0.f, 0.f, 1.f);
 
         wsPos = viewDepthToWorldPos(g_Const.view, pixelPos, viewDepth);
 
-        uint hashId = ComputeSpatialHash(wsPos);
-
-        if (g_Const.cntFlag != 0)
-            InterlockedAdd(u_HashIDCntBuffer[hashId], 1);
+        result.xyz = HashGridDebugColoredHash(wsPos, normal, viewDepth, 1.f);
+        result.w = 1.f;
         
-        result = float4(GetColorFromHash32(hashId), 1.f);
-        t_DebugColor1[pixelPos] = hashId;
+        // uint hashId = ComputeSpatialHash(wsPos, normal);
+        
+        // result = float4(GetColorFromHash32(hashId), 1.f);
+        // result = float4(GetRandomColor(hashId), 1.f);
+        // t_DebugColor1[pixelPos] = hashId;
     }
     else if (g_Const.visualizationMode == VIS_MODE_ENV_VIS_MAP)
     {
@@ -103,27 +103,23 @@ float4 main(float4 i_position : SV_Position) : SV_Target
     }
     else if (g_Const.visualizationMode == VIS_MODE_WS_ENV_VIS_MAP)
     {
-        // float viewDepth = t_GBufferDepth[pixelPos];
-        // float3 normal = octToNdirUnorm32(t_GBufferNormals[pixelPos]);
-        // float3 wsPos = float3(0.f, 0.f, 0.f);
-        // if(viewDepth == BACKGROUND_DEPTH) return float4(0.f, 0.f, 0.f, 1.f);
+        float viewDepth = t_GBufferDepth[pixelPos];
+        float3 normal = octToNdirUnorm32(t_GBufferGeoNormals[pixelPos]);
+        float3 wsPos = float3(0.f, 0.f, 0.f);
+        if(viewDepth == BACKGROUND_DEPTH) return float4(0.f, 0.f, 0.f, 1.f);
 
-        // wsPos = viewDepthToWorldPos(g_Const.view, pixelPos, viewDepth);
+        wsPos = viewDepthToWorldPos(g_Const.view, pixelPos, viewDepth);
 
-        // uint hashId = ComputeSpatialHash(wsPos);
-
-        // float3 grid_bottom_center = GetUniformGridCell(wsPos, 0.5f) + float3(0.5f, -0.1f, 0.5f);
-
-        // float3 dir = normalize(wsPos - (grid_bottom_center) * 0.5f);
-
-        // float2 hemioctTex = EncodeHemioct(dir);
-        // uint pixelIndex = GetInnerPixelIndexByHemioctTexcoord(hemioctTex);
-
-        // float pdf = 0.f;
-        // if (t_EnvVisiblityDataMap[hashId].total_cnt > 0)
-        //     pdf = t_EnvVisiblityDataMap[hashId].local_cnt[pixelIndex] * 1.f / t_EnvVisiblityDataMap[hashId].total_cnt;
-
-        // result.xyz = float3(pdf, pdf, pdf);
+        uint entry = 0;
+        uint cnt = 0;
+        
+        // HashKey hashKey = ComputeSpatialHash(wsPos, normal, viewDepth, 1.f);
+        // if (HashMapFind(hashKey, entry))
+        //     ++cnt;
+        if (FindEntry(wsPos, normal, viewDepth, 1.f, entry))
+            result.xyz = entry * 1.f / GRID_SIZE;
+        
+        // result.xyz = cnt;
         result.w = 1.f;
     }
     else if (g_Const.visualizationMode == VIS_MODE_ENV_VIS_DEBUG_1)
