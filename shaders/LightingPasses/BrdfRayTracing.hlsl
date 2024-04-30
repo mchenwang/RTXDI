@@ -48,7 +48,25 @@ void GuidedSample(
     CacheEntry gridId;// ComputeSpatialHash(surface.worldPos, surface.normal);
     EnvGuidingData gridGuidingData = (EnvGuidingData)0;
 
-    if (FindEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
+    float3 posJitter = float3(0.f, 0.f, 0.f);
+
+    float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
+    posJitter = tangent * t.x + bitangent * t.y;
+    posJitter *= 0.5f;
+
+    float3 normal = float3(0.f, 0.f, 0.f);
+
+    {
+        const float sin_theta = sqrt(t.x);
+        const float phi = 2.0f * c_pi * t.y;
+        normal.x = sin_theta * cos(phi);
+        normal.y = sin_theta * sin(phi);
+        normal.z = sqrt(max(0.f, 1.f - sin_theta * sin_theta));
+
+        normal = ToWorld(normal, tangent, bitangent, surface.normal);
+    }
+
+    if (FindEntry(surface.worldPos + posJitter, normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
     {
         gridGuidingData = t_EnvGuidingMap[gridId];
         u_DebugColor1[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
@@ -143,7 +161,7 @@ void GuidedSample(
 
         if (g_Const.guidingFlag & GUIDING_FLAG_DI_BRDF_MIS)
         {
-            if (!isDeltaSurface)
+            if (!isDeltaSurface && gridGuidingData.total > 0.001f)
             {
                 o_guidedSamplePdf *= 1.f - ENV_GUIDING_SAMPLE_FRACTION;
                 guidedPdf = GetEnvRadiancGuidedPdf(gridGuidingData, ToLocal(o_L, tangent, bitangent, surface.normal));
@@ -479,11 +497,11 @@ void RayGen()
         secondarySurface.specularF0 = 0;
         secondarySurface.roughness = 0;
         secondarySurface.isEnvironmentMap = true;
-    }
 
         if (g_Const.guidingFlag & GUIDING_FLAG_UPDATE_ENABLE)
         {
             CacheEntry gridId;
+
             if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
             {
                 EnvRadianceData data = (EnvRadianceData)0;
@@ -508,6 +526,7 @@ void RayGen()
                 u_DebugColor2[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
             }
         }
+    }
 
     if (g_Const.enableBrdfIndirect)
     {
