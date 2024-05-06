@@ -33,7 +33,7 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID)
         EnvRadianceData data = t_EnvRandianceBuffer[stats.offset + i];
         if (!isnan(data.radianceLuminance) && data.radianceLuminance > 0.f)
         {
-            float2 tex = EncodeHemioct(data.dir) * 0.5f + 0.5f;
+            float2 tex = EncodeConcentricOct(data.dir) * 0.5f + 0.5f;
             int2 pixel = floor(tex * float2(ENV_GUID_RESOLUTION, ENV_GUID_RESOLUTION));
             int index = pixel.x + pixel.y * ENV_GUID_RESOLUTION;
             guidingData.luminance[index] += data.radianceLuminance;

@@ -271,4 +271,35 @@ float3 DecodeHemioct(float2 e)
     // );
 }
 
+// [-1, 1]
+float2 EncodeConcentricOct(in float3 s)
+{
+    float theta = atan2(abs(s.y), abs(s.x));
+    float r = sqrt(1.f - abs(s.z));
+
+    float v = r * 2.f / c_pi * theta;
+    float u = r - v;
+
+    if (s.z < 0.f)
+    {
+        v = 1.f - v;
+        u = 1.f - u;
+    }
+    return float2(sign(s.x) * u, sign(s.y) * v);
+}
+
+float3 DecodeConcentricOct(in float2 e)
+{
+    float d = 1.f - abs(e.x) - abs(e.y);
+    float r = 1.f - abs(d);
+
+    float z = sign(d) * (1.f - r * r);
+    float theta = c_pi / 4.f * ((abs(e.y) - abs(e.x)) / r + 1.f);
+    float sinTheta = sign(e.y) * sin(theta);
+    float cosTheta = sign(e.x) * cos(theta);
+    return float3(cosTheta * r * sqrt(2.f - r * r),
+                  sinTheta * r * sqrt(2.f - r * r),
+                  z);
+}
+
 #endif // HELPER_FUNCTIONS_HLSLI

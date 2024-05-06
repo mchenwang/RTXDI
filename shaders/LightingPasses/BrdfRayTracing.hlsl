@@ -180,9 +180,10 @@ void GuidedSample(
     }
     else
     {
-        float3 localDirection;
-        SampleEnvRadianceMap(gridGuidingData, Rand, localDirection, guidedPdf);
-        o_L = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
+        // float3 localDirection;
+        // SampleEnvRadianceMap(gridGuidingData, Rand, localDirection, guidedPdf);
+        // o_L = tangent * localDirection.x + bitangent * localDirection.y + surface.normal * localDirection.z;
+        SampleEnvRadianceMap(gridGuidingData, Rand, o_L, guidedPdf);
 
         float3 specular_BRDF_over_PDF;
         {
@@ -507,7 +508,7 @@ void RayGen()
                 EnvRadianceData data = (EnvRadianceData)0;
                 data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
                 data.gridId = gridId;
-                data.dir = ToLocal(ray.Direction, tangent, bitangent, surface.normal);
+                data.dir = normalize(ray.Direction);//ToLocal(ray.Direction, tangent, bitangent, surface.normal);
 
                 uint index = u_EnvGuidingStats.Load(0);
                 if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
