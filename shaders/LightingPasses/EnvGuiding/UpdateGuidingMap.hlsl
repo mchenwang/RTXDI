@@ -14,7 +14,7 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID)
         u_EnvGuidingStats.Store(0, 0);
         u_EnvGuidingStats.Store(4, 0);
     }
-    if (GlobalIndex.x >= ENV_GUID_GRID_CELL_SIZE) return;
+    if (GlobalIndex.x >= WORLD_GRID_SIZE) return;
 
     EnvGuidingGridStats stats = u_EnvGuidingGridStatsBuffer[GlobalIndex.x];
     EnvGuidingData guidingData = u_EnvGuidingMap[GlobalIndex.x];

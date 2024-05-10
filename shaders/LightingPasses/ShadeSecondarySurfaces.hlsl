@@ -26,29 +26,8 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
-// #include "EnvVisibilityGuid.hlsli"
-// #include "../LightShaping.hlsli"
 
 static const float c_MaxIndirectRadiance = 10;
-
-static const uint random_colors_size = 11;
-static const float3 random_colors[random_colors_size] = {
-	float3(0,0,1),
-	float3(0,1,1),
-	float3(0,1,0),
-	float3(1,1,0),
-	float3(1,0,0),
-	float3(1,0,1),
-	float3(0.5,1,1),
-	float3(0.5,1,0.5),
-	float3(1,1,0.5),
-	float3(1,0.5,0.5),
-	float3(1,0.5,1),
-};
-float3 random_color(uint index)
-{
-	return random_colors[index % random_colors_size];
-}
 
 #if USE_RAY_QUERY
 [numthreads(RTXDI_SCREEN_SPACE_GROUP_SIZE, RTXDI_SCREEN_SPACE_GROUP_SIZE, 1)]
@@ -101,73 +80,139 @@ void RayGen()
     // Shade the secondary surface.
     if (isValidSecondarySurface && !isEnvironmentMap)
     {
-        bool envGuidedSample = g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI;
+        RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
+            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryLocalLightSamples,
+            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryInfiniteLightSamples,
+            g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
+            0,      // numBrdfSamples
+            0.f,    // brdfCutoff 
+            0.f);   // brdfMinRayT
 
-        if (!envGuidedSample) {
-            RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(
-                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryLocalLightSamples,
-                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryInfiniteLightSamples,
-                g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.numPrimaryEnvironmentSamples,
-                0,      // numBrdfSamples
-                0.f,    // brdfCutoff 
-                0.f);   // brdfMinRayT
+        RAB_LightSample lightSample;
+//         RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
+//             sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
+// #if RTXDI_ENABLE_PRESAMPLING
+//         g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
+// #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
+//         g_Const.regir,
+// #endif
+// #endif
+//         lightSample);
 
-            RAB_LightSample lightSample;
-            RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
-                sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
-    #if RTXDI_ENABLE_PRESAMPLING
-            g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
-    #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
-            g_Const.regir,
-    #endif
-    #endif
-            lightSample);
+        RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
+        
+        if (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE))
+        {
+            reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
+                    sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
+#if RTXDI_ENABLE_PRESAMPLING
+                g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
+#if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
+                g_Const.regir,
+#endif
+#endif
+                lightSample);
 
-            if (g_Const.brdfPT.enableSecondaryResampling)
+        }
+        else
+        {
+            float3 posJitter = float3(0.f, 0.f, 0.f);
+
+            float3 tangent, bitangent;
+            branchlessONB(secondarySurface.normal, tangent, bitangent);
+            float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
+            posJitter = tangent * t.x + bitangent * t.y;
+            posJitter *= g_Const.sceneGridScale;
+
+            CacheEntry gridId;
+            if (FindEntry(secondarySurface.worldPos + posJitter, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
             {
-                // Try to find this secondary surface in the G-buffer. If found, resample the lights
-                // from that G-buffer surface into the reservoir using the spatial resampling function.
+                uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + 
+                    clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
+                RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[wsReservoirIndex]);
 
-                float4 secondaryClipPos = mul(float4(secondaryGBufferData.worldPos, 1.0), g_Const.view.matWorldToClip);
-                secondaryClipPos.xyz /= secondaryClipPos.w;
-
-                if (all(abs(secondaryClipPos.xy) < 1.0) && secondaryClipPos.w > 0)
+                if (RTXDI_IsValidDIReservoir(wsReservoir))
                 {
-                    int2 secondaryPixelPos = int2(secondaryClipPos.xy * g_Const.view.clipToWindowScale + g_Const.view.clipToWindowBias);
-                    secondarySurface.viewDepth = secondaryClipPos.w;
-
-                    RTXDI_DISpatialResamplingParameters sparams;
-                    sparams.sourceBufferIndex = g_Const.restirDI.bufferIndices.shadingInputBufferIndex;
-                    sparams.numSamples = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.numSpatialSamples;
-                    sparams.numDisocclusionBoostSamples = 0;
-                    sparams.targetHistoryLength = 0;
-                    sparams.biasCorrectionMode = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialBiasCorrection;
-                    sparams.samplingRadius = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialSamplingRadius;
-                    sparams.depthThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialDepthThreshold;
-                    sparams.normalThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialNormalThreshold;
-                    sparams.enableMaterialSimilarityTest = false;
-                    sparams.discountNaiveSamples = false;
-
-                    reservoir = RTXDI_DISpatialResampling(secondaryPixelPos, secondarySurface, reservoir,
-                        rng, params, g_Const.restirDI.reservoirBufferParams, sparams, lightSample);
+                    if(RTXDI_CombineDIReservoirs(reservoir, wsReservoir, 0.5f, wsReservoir.targetPdf))
+                    {
+                        lightSample = RAB_SamplePolymorphicLight(
+                            RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(wsReservoir), false), 
+                            secondarySurface, 
+                            RTXDI_GetDIReservoirSampleUV(wsReservoir));
+                    }
+                    RTXDI_FinalizeResampling(reservoir, 1.0, reservoir.M);
                 }
             }
-
-            float3 indirectDiffuse = 0;
-            float3 indirectSpecular = 0;
-            float lightDistance = 0;
-            ShadeSurfaceWithLightSample(reservoir, secondarySurface, lightSample, /* previousFrameTLAS = */ false,
-                /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
-
-            radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
-
-            // Firefly suppression
-            float indirectLuminance = calcLuminance(radiance);
-            if (indirectLuminance > c_MaxIndirectRadiance)
-                radiance *= c_MaxIndirectRadiance / indirectLuminance;
-        } else {
-            
         }
+
+        if (g_Const.brdfPT.enableSecondaryResampling)
+        {
+            // Try to find this secondary surface in the G-buffer. If found, resample the lights
+            // from that G-buffer surface into the reservoir using the spatial resampling function.
+
+            float4 secondaryClipPos = mul(float4(secondaryGBufferData.worldPos, 1.0), g_Const.view.matWorldToClip);
+            secondaryClipPos.xyz /= secondaryClipPos.w;
+
+            if (all(abs(secondaryClipPos.xy) < 1.0) && secondaryClipPos.w > 0)
+            {
+                int2 secondaryPixelPos = int2(secondaryClipPos.xy * g_Const.view.clipToWindowScale + g_Const.view.clipToWindowBias);
+                secondarySurface.viewDepth = secondaryClipPos.w;
+
+                RTXDI_DISpatialResamplingParameters sparams;
+                sparams.sourceBufferIndex = g_Const.restirDI.bufferIndices.shadingInputBufferIndex;
+                sparams.numSamples = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.numSpatialSamples;
+                sparams.numDisocclusionBoostSamples = 0;
+                sparams.targetHistoryLength = 0;
+                sparams.biasCorrectionMode = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialBiasCorrection;
+                sparams.samplingRadius = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialSamplingRadius;
+                sparams.depthThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialDepthThreshold;
+                sparams.normalThreshold = g_Const.brdfPT.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialNormalThreshold;
+                sparams.enableMaterialSimilarityTest = false;
+                sparams.discountNaiveSamples = false;
+
+                reservoir = RTXDI_DISpatialResampling(secondaryPixelPos, secondarySurface, reservoir,
+                    rng, params, g_Const.restirDI.reservoirBufferParams, sparams, lightSample);
+            }
+        }
+
+        
+        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_ENABLE) && 
+            RTXDI_IsValidDIReservoir(reservoir))
+        {
+            CacheEntry gridId;
+            // if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
+            // {
+            //     WSRLightSample wsrLightSample = (WSRLightSample)0;
+            //     wsrLightSample.gridId = gridId;
+            //     wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
+            //     wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
+            //     wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface);
+            //     wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
+            //     wsrLightSample.random = 0.5f;
+
+            //     uint sampleCnt;
+            //     InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
+            //     // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM)
+            //     {
+            //         uint index;
+            //         u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
+            //         u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
+            //     }
+            // }
+        }
+
+        float3 indirectDiffuse = 0;
+        float3 indirectSpecular = 0;
+        float lightDistance = 0;
+        ShadeSurfaceWithLightSample(reservoir, secondarySurface, lightSample, /* previousFrameTLAS = */ false,
+            /* enableVisibilityReuse = */ false, indirectDiffuse, indirectSpecular, lightDistance);
+
+        radiance += indirectDiffuse * secondarySurface.diffuseAlbedo + indirectSpecular;
+
+        // Firefly suppression
+        float indirectLuminance = calcLuminance(radiance);
+        if (indirectLuminance > c_MaxIndirectRadiance)
+            radiance *= c_MaxIndirectRadiance / indirectLuminance;
     }
 
     bool outputShadingResult = true;

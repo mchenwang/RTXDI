@@ -393,50 +393,99 @@ void UserInterface::SamplingSettings()
     }
     ImGui::Separator();
 
-    static bool s_GuidingEnable = true;
-    static bool s_GuidingDI = true;
-    static bool s_GuidingGI = false;
-    static bool s_GuidingUpdate = true;
-    static bool s_GuidingDIMIS = true;
-    static bool s_GuidingGIMIS = false;
     
-    ImGui::Checkbox("Enable Guiding", &s_GuidingEnable);
-    if (s_GuidingEnable)
+    ImGui::PushStyleColor(ImGuiCol_Text, c_ColorAttentionHeader);
+    bool isOpen = ImGui::TreeNodeEx("World Space ReSTIR", ImGuiTreeNodeFlags_DefaultOpen);
+    ImGui::PopStyleColor();
+
+    if (isOpen)
     {
-        ImGui::Checkbox("Guiding DI", &s_GuidingDI);
-        if (s_GuidingDI)
+        static bool s_WSRUpdate = true;
+        ImGui::Checkbox("World Space Light Sample Update", &s_WSRUpdate);
+
+        static bool s_TemploralReuse = true;
+        ImGui::Checkbox("Temporal Resue", &s_TemploralReuse);
+
+        static bool s_SpatialReuse = true;
+        ImGui::Checkbox("Spatial Resue", &s_SpatialReuse);
+
+        static bool s_DIEnable = false;
+        ImGui::Checkbox("DI Enable", &s_DIEnable);
+
+        static bool s_GIEnable = true;
+        static bool s_GICombine = false;
+        ImGui::Checkbox("GI Enable", &s_GIEnable);
+        if (s_GIEnable)
         {
-            ImGui::Checkbox("DI BRDF MIS", &s_GuidingDIMIS);
+            // ImGui::Checkbox("GI Combine", &s_GICombine);
         }
-        ImGui::Checkbox("Guiding GI", &s_GuidingGI);
-        if (s_GuidingGI)
+
+        m_ui.worldSpaceReservoirFlag = (s_WSRUpdate ? 1 : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_TemploralReuse ? (1 << 1) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_SpatialReuse ? (1 << 2) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_DIEnable ? (1 << 3) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_GIEnable ? (1 << 4) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 5) : 0);
+        
+
+        if (ImGui::Button("Reset Reservoir"))
         {
-            ImGui::Checkbox("GI BRDF MIS", &s_GuidingGIMIS);
+            m_ui.worldSpaceReservoirResetFlag = true;
         }
-    }
-    ImGui::Checkbox("Enable Guiding Update", &s_GuidingUpdate);
 
-    if (!s_GuidingEnable)
+        ImGui::TreePop();
+    }
+    
+    ImGui::Separator();
+
+    if (ImGui_ColoredTreeNode("Environment guiding", c_ColorAttentionHeader))
     {
-        s_GuidingDI = false;
-        s_GuidingGI = false;
-        s_GuidingUpdate = false;
-        s_GuidingDIMIS = false;
-        s_GuidingGIMIS = false;
+        static bool s_GuidingEnable = false;
+        static bool s_GuidingDI = true;
+        static bool s_GuidingGI = false;
+        static bool s_GuidingUpdate = true;
+        static bool s_GuidingDIMIS = true;
+        static bool s_GuidingGIMIS = false;
+        
+        ImGui::Checkbox("Enable Guiding", &s_GuidingEnable);
+        if (s_GuidingEnable)
+        {
+            ImGui::Checkbox("Guiding DI", &s_GuidingDI);
+            // if (s_GuidingDI)
+            // {
+            //     ImGui::Checkbox("DI BRDF MIS", &s_GuidingDIMIS);
+            // }
+            // ImGui::Checkbox("Guiding GI", &s_GuidingGI);
+            // if (s_GuidingGI)
+            // {
+            //     ImGui::Checkbox("GI BRDF MIS", &s_GuidingGIMIS);
+            // }
+        }
+        ImGui::Checkbox("Enable Guiding Update", &s_GuidingUpdate);
+
+        if (!s_GuidingEnable)
+        {
+            s_GuidingDI = false;
+            s_GuidingGI = false;
+            s_GuidingUpdate = false;
+            s_GuidingDIMIS = false;
+            s_GuidingGIMIS = false;
+        }
+
+        m_ui.guidingFlag = (s_GuidingEnable ? 1 : 0);
+        m_ui.guidingFlag |= (s_GuidingDI ? (1 << 1) : 0);
+        m_ui.guidingFlag |= (s_GuidingGI ? (1 << 2) : 0);
+        m_ui.guidingFlag |= (s_GuidingUpdate ? (1 << 3) : 0);
+        m_ui.guidingFlag |= (s_GuidingDIMIS ? (1 << 4) : 0);
+        m_ui.guidingFlag |= (s_GuidingGIMIS ? (1 << 5) : 0);
+
+        if (ImGui::Button("Reset Guiding Data"))
+        {
+            m_ui.guidingResetFlag = true;
+        }
+
+        ImGui::TreePop();
     }
-
-    m_ui.guidingFlag = (s_GuidingEnable ? 1 : 0);
-    m_ui.guidingFlag |= (s_GuidingDI ? (1 << 1) : 0);
-    m_ui.guidingFlag |= (s_GuidingGI ? (1 << 2) : 0);
-    m_ui.guidingFlag |= (s_GuidingUpdate ? (1 << 3) : 0);
-    m_ui.guidingFlag |= (s_GuidingDIMIS ? (1 << 4) : 0);
-    m_ui.guidingFlag |= (s_GuidingGIMIS ? (1 << 5) : 0);
-
-    if (ImGui::Button("Reset Guiding Data"))
-    {
-        m_ui.guidingResetFlag = true;
-    }
-
     ImGui::Separator();
     
     if (ImGui_ColoredTreeNode("Direct Lighting", c_ColorAttentionHeader))

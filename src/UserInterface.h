@@ -138,11 +138,14 @@ struct UIData
 
     // DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
     // IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
-    DirectLightingMode directLightingMode = DirectLightingMode::Brdf;
-    IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
+    DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
+    IndirectLightingMode indirectLightingMode = IndirectLightingMode::Brdf;
     uint32_t guidingFlag = 0;
     bool guidingResetFlag = false;
     
+    uint32_t worldSpaceReservoirFlag = 0;
+    bool worldSpaceReservoirResetFlag = false;
+
     ibool enableAnimations = true;
     float animationSpeed = 1.f;
     int environmentMapDirty = 0; // 1 -> needs to be rendered; 2 -> passes/textures need to be created

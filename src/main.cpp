@@ -53,9 +53,8 @@
 #include "Testing.h"
 #include "DebugViz/DebugVizPasses.h"
 
-// #include "CalculateEnvVisCdfPass.h"
-// #include "VMFPass.h"
 #include "EnvGuidingUpdatePass.h"
+#include "WorldSpaceReservoirUpdatePass.h"
 
 #if WITH_NRD
 #include "NrdIntegration.h"
@@ -129,6 +128,7 @@ private:
     // std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
     // std::unique_ptr<VMFPass> m_VMFPass;
     std::unique_ptr<EnvGuidingUpdatePass> m_EnvGuidingUpdatePass;
+    std::unique_ptr<WorldSpaceReservoirUpdatePass> m_WorldSpaceReservoirUpdatePass;
     
 
     uint32_t m_RenderFrameIndex = 0;
@@ -221,8 +221,8 @@ public:
             m_BindlessLayout = GetDevice()->createBindlessLayout(bindlessLayoutDesc);
         }
 
-        // std::filesystem::path scenePath = "/media/test.json";
-        std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
+        std::filesystem::path scenePath = "/media/test.json";
+        // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
         // std::filesystem::path scenePath = "/media/Arcade/Arcade.gltf";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
@@ -260,6 +260,7 @@ public:
         // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         // m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         m_EnvGuidingUpdatePass = std::make_unique<EnvGuidingUpdatePass>(GetDevice(), m_ShaderFactory);
+        m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory);
 
 #ifdef WITH_DLSS
         {
@@ -328,7 +329,10 @@ public:
 
         m_Scene->FinishedLoading(GetFrameIndex());
 
-        m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
+        // m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
+        float3 pos = float3(-0.2385f, 1.926f, 5.215f);
+        float3 dir = float3(-0.02254f, -0.05497f, -0.9982f);
+        m_Camera.LookAt(pos, pos + dir);
         m_Camera.SetMoveSpeed(3.f);
 
         const auto& sceneGraph = m_Scene->GetSceneGraph();
@@ -385,6 +389,7 @@ public:
         // m_CalculateEnvVisCdfPass->CreatePipeline();
         // m_VMFPass->CreatePipeline();
         m_EnvGuidingUpdatePass->CreatePipeline();
+        m_WorldSpaceReservoirUpdatePass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -733,6 +738,7 @@ public:
             // m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
             // m_VMFPass->CreateBindingSet(*m_RtxdiResources);
             m_EnvGuidingUpdatePass->CreateBindingSet(*m_RtxdiResources);
+            m_WorldSpaceReservoirUpdatePass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)
@@ -1246,7 +1252,8 @@ public:
                 *m_isContext,
                 m_View, m_ViewPrevious,
                 lightingSettings,
-                /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation);
+                /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
+                m_ui.worldSpaceReservoirFlag);
         }
 
         if (enableDirectReStirPass)
@@ -1286,7 +1293,8 @@ public:
                 /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 enableReSTIRGI,
-                m_ui.guidingFlag
+                m_ui.guidingFlag,
+                m_ui.worldSpaceReservoirFlag
                 );
         }
 
@@ -1307,9 +1315,19 @@ public:
             m_ui.guidingResetFlag = false;
             m_EnvGuidingUpdatePass->Reset(m_CommandList);
         }
-        else
+        else if (m_ui.guidingFlag & GUIDING_FLAG_ENABLE)
         {
             m_EnvGuidingUpdatePass->Process(m_CommandList);
+        }
+
+        if (m_ui.worldSpaceReservoirResetFlag)
+        {
+            m_ui.worldSpaceReservoirResetFlag = false;
+            m_WorldSpaceReservoirUpdatePass->Reset(m_CommandList);
+        }
+        else if (m_ui.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_ENABLE)
+        {
+            m_WorldSpaceReservoirUpdatePass->Process(m_CommandList);
         }
 
         // If none of the passes above were executed, clear the textures to avoid stale data there.

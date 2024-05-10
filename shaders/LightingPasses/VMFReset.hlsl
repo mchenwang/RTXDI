@@ -6,7 +6,7 @@ RWStructuredBuffer<vMFData> u_vMFDataBuffer : register(u1);
 [numthreads(32, 1, 1)] 
 void main(uint2 GlobalIndex : SV_DispatchThreadID) 
 {
-    if (GlobalIndex.x >= ENV_GUID_GRID_CELL_SIZE) return;
+    if (GlobalIndex.x >= WORLD_GRID_SIZE) return;
 
     vMF vmf = u_vMFBuffer[GlobalIndex.x];
     vmf.kappa = 0.f;

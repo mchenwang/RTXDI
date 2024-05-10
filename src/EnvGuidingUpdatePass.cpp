@@ -175,7 +175,7 @@ void EnvGuidingUpdatePass::Process(nvrhi::ICommandList* commandList)
         state.bindings = { m_SetGridStatsPass.bindingSet };
         state.pipeline = m_SetGridStatsPass.pipeline;
         commandList->setComputeState(state);
-        commandList->dispatch((uint32_t)ceil(ENV_GUID_GRID_CELL_SIZE * 1.f / 64), 1, 1);
+        commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
     }
     {
         nvrhi::ComputeState state;
@@ -190,7 +190,7 @@ void EnvGuidingUpdatePass::Process(nvrhi::ICommandList* commandList)
         state.bindings = { m_UpdateGuidingMapPass.bindingSet };
         state.pipeline = m_UpdateGuidingMapPass.pipeline;
         commandList->setComputeState(state);
-        commandList->dispatch((uint32_t)ceil(ENV_GUID_GRID_CELL_SIZE * 1.f / 64), 1, 1);
+        commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
     }
     
     commandList->endMarker();
@@ -205,7 +205,7 @@ void EnvGuidingUpdatePass::Reset(nvrhi::ICommandList* commandList)
     state.pipeline = m_ResetGuidingMapPass.pipeline;
     commandList->setComputeState(state);
 
-    commandList->dispatch((uint32_t)ceil(ENV_GUID_GRID_CELL_SIZE * 1.f / 64), 1, 1);
+    commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
 
     commandList->endMarker();
 }

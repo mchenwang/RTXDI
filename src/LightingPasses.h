@@ -90,9 +90,6 @@ private:
     nvrhi::BufferHandle m_SecondarySurfaceBuffer;
     nvrhi::BufferHandle m_GIReservoirBuffer;
 
-    nvrhi::BufferHandle m_vMFBuffer;
-    nvrhi::BufferHandle m_vMFDataBuffer;
-
     dm::uint2 m_EnvironmentPdfTextureSize;
     dm::uint2 m_LocalLightPdfTextureSize;
 
@@ -156,7 +153,8 @@ public:
         const donut::engine::IView& view,
         const donut::engine::IView& previousView,
         const RenderSettings& localSettings,
-        bool enableAccumulation);
+        bool enableAccumulation,
+        uint32_t wsrFlag = 0);
 
     void RenderDirectLighting(
         nvrhi::ICommandList* commandList,
@@ -177,7 +175,8 @@ public:
         bool enableEmissiveSurfaces,
         bool enableAccumulation,
         bool enableReStirGI,
-        uint32_t guidingFlag = 0
+        uint32_t guidingFlag = 0,
+        uint32_t wsrFlag = 0
     );
 
     void NextFrame();

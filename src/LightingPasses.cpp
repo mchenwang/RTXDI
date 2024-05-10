@@ -140,16 +140,21 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::Sampler(0),
         nvrhi::BindingLayoutItem::Sampler(1),
         
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(14),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(15),
-        nvrhi::BindingLayoutItem::Texture_UAV(16),
-        nvrhi::BindingLayoutItem::Texture_UAV(17),
+        nvrhi::BindingLayoutItem::Texture_UAV(14),
+        nvrhi::BindingLayoutItem::Texture_UAV(15),
+
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(16),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(17),
+
         nvrhi::BindingLayoutItem::StructuredBuffer_SRV(26),
         nvrhi::BindingLayoutItem::RawBuffer_UAV(18),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(19),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(21),
+
+        nvrhi::BindingLayoutItem::StructuredBuffer_SRV(27),
+        nvrhi::BindingLayoutItem::RawBuffer_UAV(21),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(22),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(23),
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
@@ -217,16 +222,21 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::Sampler(0, m_CommonPasses->m_LinearWrapSampler),
             nvrhi::BindingSetItem::Sampler(1, m_CommonPasses->m_LinearWrapSampler),
 
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(14, resources.vMFBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(15, resources.vMFDataBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(16, resources.debugTexture1),
-            nvrhi::BindingSetItem::Texture_UAV(17, resources.debugTexture2),
+            nvrhi::BindingSetItem::Texture_UAV(14, resources.debugTexture1),
+            nvrhi::BindingSetItem::Texture_UAV(15, resources.debugTexture2),
+            
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(16, resources.gridHashMapBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(17, resources.gridHashMapLockBuffer),
+
             nvrhi::BindingSetItem::StructuredBuffer_SRV(26, resources.envGuidingMap),
             nvrhi::BindingSetItem::RawBuffer_UAV(18, resources.envGuidingStats),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.envRadianceBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.envGuidingGridStatsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.gridHashMapBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.gridHashMapLockBuffer),
+            
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(27, resources.worldSpaceLightReservoirsBuffer),
+            nvrhi::BindingSetItem::RawBuffer_UAV(21, resources.worldSpaceReservoirsStats),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(22, resources.worldSpaceLightSamplesBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(23, resources.worldSpaceGridStatsBuffer),
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);
@@ -248,9 +258,6 @@ void LightingPasses::CreateBindingSet(
     m_LightReservoirBuffer = resources.LightReservoirBuffer;
     m_SecondarySurfaceBuffer = resources.SecondaryGBuffer;
     m_GIReservoirBuffer = resources.GIReservoirBuffer;
-
-    m_vMFBuffer = resources.vMFBuffer;
-    m_vMFDataBuffer = resources.vMFDataBuffer;
 }
 
 void LightingPasses::CreateComputePass(ComputePass& pass, const char* shaderName, const std::vector<donut::engine::ShaderMacro>& macros)
@@ -499,7 +506,8 @@ void LightingPasses::PrepareForLightSampling(
     const donut::engine::IView& view,
     const donut::engine::IView& previousView,
     const RenderSettings& localSettings,
-    bool enableAccumulation)
+    bool enableAccumulation,
+    uint wsrFlag)
 {
     rtxdi::ReSTIRDIContext& restirDIContext = isContext.getReSTIRDIContext();
     rtxdi::ReGIRContext& regirContext = isContext.getReGIRContext();
@@ -510,6 +518,7 @@ void LightingPasses::PrepareForLightSampling(
     previousView.FillPlanarViewConstants(constants.prevView);
     FillResamplingConstants(constants, localSettings, isContext);
     constants.enableAccumulation = enableAccumulation;
+    constants.worldSpaceReservoirFlag = wsrFlag;
 
     commandList->writeBuffer(m_ConstantBuffer, &constants, sizeof(constants));
 
@@ -618,7 +627,8 @@ void LightingPasses::RenderBrdfRays(
     bool enableEmissiveSurfaces,
     bool enableAccumulation,
     bool enableReSTIRGI,
-    uint32_t guidingFlag
+    uint32_t guidingFlag,
+    uint32_t wsrFlag
     )
 {
     ResamplingConstants constants = {};
@@ -634,6 +644,8 @@ void LightingPasses::RenderBrdfRays(
     constants.enableBrdfAdditiveBlend = enableAdditiveBlend;
     constants.enableAccumulation = enableAccumulation;
     constants.guidingFlag = guidingFlag;
+    constants.worldSpaceReservoirFlag = wsrFlag;
+
     constants.sceneConstants.enableEnvironmentMap = (environmentLight.textureIndex >= 0);
     constants.sceneConstants.environmentMapTextureIndex = (environmentLight.textureIndex >= 0) ? environmentLight.textureIndex : 0;
     constants.sceneConstants.environmentScale = environmentLight.radianceScale.x;
@@ -655,9 +667,6 @@ void LightingPasses::RenderBrdfRays(
 
     if (restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off)
         dispatchSize.x /= 2;
-
-    nvrhi::utils::BufferUavBarrier(commandList, m_vMFBuffer);
-    nvrhi::utils::BufferUavBarrier(commandList, m_vMFDataBuffer);
 
     ExecuteRayTracingPass(commandList, m_BrdfRayTracingPass, localSettings.enableRayCounts, "BrdfRayTracingPass", dispatchSize, ProfilerSection::BrdfRays);
 

@@ -49,15 +49,17 @@ public:
     nvrhi::BufferHandle envRadianceBufferReordered;
     nvrhi::BufferHandle envGuidingGridStatsBuffer;
 
-    nvrhi::BufferHandle vMFBuffer;
-    nvrhi::BufferHandle vMFDataBuffer;
-
     nvrhi::TextureHandle debugTexture1;
     nvrhi::TextureHandle debugTexture2;
-    nvrhi::BufferHandle debugBuffer1;
 
     nvrhi::BufferHandle gridHashMapBuffer;
     nvrhi::BufferHandle gridHashMapLockBuffer;
+
+    nvrhi::BufferHandle worldSpaceLightReservoirsBuffer;
+    nvrhi::BufferHandle worldSpaceReservoirsStats;
+    nvrhi::BufferHandle worldSpaceLightSamplesBuffer;
+    nvrhi::BufferHandle worldSpaceReorderedLightSamplesBuffer;
+    nvrhi::BufferHandle worldSpaceGridStatsBuffer;
 
     RtxdiResources(
         nvrhi::IDevice* device, 

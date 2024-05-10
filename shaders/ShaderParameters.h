@@ -254,7 +254,7 @@ struct ResamplingConstants
 
     uint visualizeRegirCells;
     uint guidingFlag;
-    uint pad2;
+    uint worldSpaceReservoirFlag;
     uint pad3;
     
     uint2 environmentPdfTextureSize;
@@ -326,10 +326,11 @@ struct PolymorphicLightInfo
     uint cosConeAngleAndSoftness; // 2x float16
     uint padding;
 };
+\
+#define WORLD_GRID_DIMENSION     128
+#define WORLD_GRID_SIZE          (WORLD_GRID_DIMENSION * WORLD_GRID_DIMENSION * WORLD_GRID_DIMENSION)
 
 #define ENV_GUID_RESOLUTION          6
-#define ENV_GUID_GRID_DIMENSIONS     128
-#define ENV_GUID_GRID_CELL_SIZE      (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS)
 #define ENV_GUID_MAX_TEMP_RAY_NUM    1000000
 #define ENV_GUIDING_SAMPLE_FRACTION  0.9f
 
@@ -379,6 +380,43 @@ struct EnvVisibilityVisualizationConstants
 
     uint flag;
     uint3 pad;
+};
+
+#define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   1000000
+#define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        10000
+// the number of reservoirs in a grid (not bigger than 32 or 64?)
+#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  32
+#define WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM     (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * 32)
+
+#define WORLD_SPACE_RESERVOIR_UPDATE_ENABLE     (1)
+#define WORLD_SPACE_RESERVOIR_TEMPLORAL_ENABLE  (1 << 1)
+#define WORLD_SPACE_RESERVOIR_SPATIAL_ENABLE    (1 << 2)
+#define WORLD_SPACE_RESERVOIR_DI_ENABLE         (1 << 3)
+#define WORLD_SPACE_RESERVOIR_GI_ENABLE         (1 << 4)
+#define WORLD_SPACE_RESERVOIR_GI_COMBINE        (1 << 5)
+
+struct WSRLightSample
+{
+    uint gridId;
+    uint lightIndex;
+    float2 uv;
+    float random;
+    float targetPdf;
+    float invSourcePdf;
+    uint pad;
+};
+
+struct WSRStats
+{
+    uint sampleCnt;
+    uint offset;
+    uint activedGridCnt;
+};
+
+struct WSRGridStats
+{
+    uint sampleCnt;
+    uint offset;
 };
 
 #define VMF_MAX_DATA_NUM 20

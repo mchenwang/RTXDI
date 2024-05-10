@@ -1,7 +1,7 @@
 #ifndef HASH_GRID_HELPER_HLSLI
 #define HASH_GRID_HELPER_HLSLI
 
-static const uint3 GRID_DIMENSIONS = uint3(ENV_GUID_GRID_DIMENSIONS, ENV_GUID_GRID_DIMENSIONS, ENV_GUID_GRID_DIMENSIONS);
+static const uint3 GRID_DIMENSIONS = uint3(WORLD_GRID_DIMENSION, WORLD_GRID_DIMENSION, WORLD_GRID_DIMENSION);
 static const uint GRID_SIZE = GRID_DIMENSIONS.x * GRID_DIMENSIONS.y * GRID_DIMENSIONS.z;
 
 int3 GetUniformGridCell(float3 wsPosition, float cellSize)
@@ -112,19 +112,20 @@ uint ComputeSpatialHash(float3 wsPosition, float3 normal, float scale)
 
 #else
 
-#define HASH_GRID_POSITION_BIT_NUM          17
+#define HASH_GRID_POSITION_BIT_NUM          9
 #define HASH_GRID_POSITION_BIT_MASK         ((1u << HASH_GRID_POSITION_BIT_NUM) - 1)
-#define HASH_GRID_LEVEL_BIT_NUM             10
+#define HASH_GRID_LEVEL_BIT_NUM             2
 #define HASH_GRID_LEVEL_BIT_MASK            ((1u << HASH_GRID_LEVEL_BIT_NUM) - 1)
 #define HASH_GRID_NORMAL_BIT_NUM            3
 #define HASH_GRID_NORMAL_BIT_MASK           ((1u << HASH_GRID_NORMAL_BIT_NUM) - 1)
 #define HASH_GRID_HASH_MAP_BUCKET_SIZE      32
-#define HASH_GRID_INVALID_HASH_KEY          0LL
+#define HASH_GRID_INVALID_HASH_KEY          0
 #define HASH_GRID_USE_NORMALS               1
 #define HASH_GRID_ALLOW_COMPACTION          (HASH_GRID_HASH_MAP_BUCKET_SIZE == 32)
 
 typedef uint CacheEntry;
-typedef uint64_t HashKey;
+// typedef uint64_t HashKey;
+typedef uint HashKey;
 
 static const uint  S_HASH_MAP_CAPACITY = GRID_SIZE;
 
@@ -144,9 +145,9 @@ uint GetBaseSlot(uint slot)
 
 uint Hash32(HashKey hashKey)
 {
-    // return hashKey;
-    return HashJenkins32(uint((hashKey >> 0) & 0xffffffff))
-         ^ HashJenkins32(uint((hashKey >> 32) & 0xffffffff));
+    return HashJenkins32(hashKey);
+    // return HashJenkins32(uint((hashKey >> 0) & 0xffffffff))
+    //      ^ HashJenkins32(uint((hashKey >> 32) & 0xffffffff));
 }
 
 uint GetGridLevel(float viewDepth)
@@ -192,27 +193,27 @@ HashKey ComputeSpatialHash(float3 samplePosition, float3 sampleNormal, float vie
 
 void AtomicCompareExchange(in uint dstOffset, in HashKey compareValue, in HashKey value, out HashKey originalValue)
 {
-    // InterlockedCompareExchange(u_GridHashMap[dstOffset], compareValue, value, originalValue);
-    const uint cLock = 0xAAAAAAAA;
-    uint fuse = 0;
-    const uint fuseLength = 8;
-    bool busy = true;
-    while (busy && fuse < fuseLength)
-    {
-        uint state;
-        InterlockedExchange(u_GridHashMapLockBuffer[dstOffset], cLock, state);
-        busy = state != 0;
+    InterlockedCompareExchange(u_GridHashMap[dstOffset], compareValue, value, originalValue);
+    // const uint cLock = 0xAAAAAAAA;
+    // uint fuse = 0;
+    // const uint fuseLength = 8;
+    // bool busy = true;
+    // while (busy && fuse < fuseLength)
+    // {
+    //     uint state;
+    //     InterlockedExchange(u_GridHashMapLockBuffer[dstOffset], cLock, state);
+    //     busy = state != 0;
 
-        if (state != cLock)
-        {
-            originalValue = u_GridHashMap[dstOffset];
-            if (originalValue == compareValue)
-                u_GridHashMap[dstOffset] = value;
-            InterlockedExchange(u_GridHashMapLockBuffer[dstOffset], state, fuse);
-            fuse = fuseLength;
-        }
-        ++fuse;
-    }
+    //     if (state != cLock)
+    //     {
+    //         originalValue = u_GridHashMap[dstOffset];
+    //         if (originalValue == compareValue)
+    //             u_GridHashMap[dstOffset] = value;
+    //         InterlockedExchange(u_GridHashMapLockBuffer[dstOffset], state, fuse);
+    //         fuse = fuseLength;
+    //     }
+    //     ++fuse;
+    // }
 }
 
 bool HashMapInsert(const HashKey hashKey, out CacheEntry cacheEntry)
@@ -252,7 +253,6 @@ bool HashMapFind(const HashKey hashKey, inout CacheEntry cacheEntry)
     for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
     {
         HashKey storedHashKey = u_GridHashMap[baseSlot + bucketOffset];
-        // HashKey storedHashKey = 0;
 
         if (storedHashKey == hashKey)
         {
@@ -272,28 +272,22 @@ bool HashMapFind(const HashKey hashKey, inout CacheEntry cacheEntry)
 
 bool TryInsertEntry(float3 samplePosition, float3 sampleNormal, float viewDepth, float scale, out CacheEntry o_cacheEntry)
 {
-    CacheEntry    cacheEntry = 0;
-     HashKey hashKey    = ComputeSpatialHash(samplePosition, sampleNormal, viewDepth, scale);
-    bool     successful = HashMapInsert(hashKey, cacheEntry);
+    CacheEntry cacheEntry = 0;
+    HashKey hashKey = ComputeSpatialHash(samplePosition, sampleNormal, viewDepth, scale);
+    bool successful = HashMapInsert(hashKey, cacheEntry);
 
     o_cacheEntry = cacheEntry;
     return successful;
-
-    // o_cacheEntry = GetUniformGridCellHashId(GetUniformGridCell(samplePosition, scale), sampleNormal);
-    // return true;
 }
 
 bool FindEntry(float3 samplePosition, float3 sampleNormal, float viewDepth, float scale, out CacheEntry o_cacheEntry)
 {
-    CacheEntry    cacheEntry = 0;
-     HashKey hashKey    = ComputeSpatialHash(samplePosition, sampleNormal, viewDepth, scale);
-    bool     successful = HashMapFind(hashKey, cacheEntry);
+    CacheEntry cacheEntry = 0;
+    HashKey hashKey = ComputeSpatialHash(samplePosition, sampleNormal, viewDepth, scale);
+    bool successful = HashMapFind(hashKey, cacheEntry);
 
     o_cacheEntry = cacheEntry;
     return successful;
-
-    // o_cacheEntry = GetUniformGridCellHashId(GetUniformGridCell(samplePosition, scale), sampleNormal);
-    // return true;
 }
 
 // Debug functions

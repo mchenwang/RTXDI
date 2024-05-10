@@ -3,8 +3,8 @@
 #include "ShaderParameters.h"
 #include "HelperFunctions.hlsli"
 
-RWStructuredBuffer<uint64_t> u_GridHashMap : register(u4);
-RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u5);
+RWStructuredBuffer<uint> u_GridHashMap : register(u2);
+RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u3);
 
 #include "LightingPasses/HashGridHelper.hlsli"
 
@@ -14,38 +14,6 @@ Texture2D<uint> t_GBufferGeoNormals : register(t1);
 
 RWTexture2D<float4> t_DebugColor1 : register(u0);
 RWTexture2D<float4> t_DebugColor2 : register(u1);
-
-RWStructuredBuffer<vMF> u_vMFBuffer : register(u2);
-RWStructuredBuffer<vMFData> u_vMFDataBuffer : register(u3);
-
-static const uint s_random_colors_size = 11;
-static const float3 s_random_colors[s_random_colors_size] = {
-	float3(0,0,1),
-	float3(0,1,1),
-	float3(0,1,0),
-	float3(1,1,0),
-	float3(1,0,0),
-	float3(1,0,1),
-	float3(0.5,1,1),
-	float3(0.5,1,0.5),
-	float3(1,1,0.5),
-	float3(1,0.5,0.5),
-	float3(1,0.5,1),
-};
-float3 GetRandomColor(uint index)
-{
-	return s_random_colors[index % s_random_colors_size];
-}
-
-// float3 GetColorFromHash32(uint hash)
-// {
-//     float3 color;
-//     color.x = ((hash >>  0) & 0x7f) / 127.0f;
-//     color.y = ((hash >> 7) & 0x7f) / 127.0f;
-//     color.z = ((hash >> 14) & 0x7f) / 127.0f;
-
-//     return color;
-// }
 
 float3 viewDepthToWorldPos(
     PlanarViewConstants view,
@@ -90,7 +58,7 @@ float4 main(float4 i_position : SV_Position) : SV_Target
     else if (g_Const.visualizationMode == VIS_MODE_ENV_VIS_MAP)
     {
         // int2 map_id = floor(float2(pixelPos.x / ENV_GUID_RESOLUTION, pixelPos.y / ENV_GUID_RESOLUTION));
-        // uint map_index = map_id.x + map_id.y * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS;
+        // uint map_index = map_id.x + map_id.y * WORLD_GRID_DIMENSION * WORLD_GRID_DIMENSION;
         // int2 inner_id = pixelPos % ENV_GUID_RESOLUTION;
         // uint inner_index = inner_id.x + inner_id.y * ENV_GUID_RESOLUTION;
 

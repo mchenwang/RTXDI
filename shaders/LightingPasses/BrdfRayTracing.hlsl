@@ -69,11 +69,6 @@ void GuidedSample(
     if (FindEntry(surface.worldPos + posJitter, normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
     {
         gridGuidingData = t_EnvGuidingMap[gridId];
-        u_DebugColor1[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
-    }
-    else 
-    {
-        u_DebugColor1[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
     }
 
     if (gridGuidingData.total > 0.001f)
@@ -279,7 +274,7 @@ void RayGen()
     float overall_PDF;
 
     float guidedSamplePdf = 0.f;
-    if (!isDeltaSurface)
+    // if (!isDeltaSurface)
     {
         if (g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI)
         {
@@ -348,23 +343,23 @@ void RayGen()
             overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
         }
     }
-    else
-    {
-        isSpecularRay = true;
-        float3 specularDirection = reflect(-V, surface.normal);
-        float3 specular_BRDF_over_PDF = Schlick_Fresnel(surface.specularF0, saturate(dot(surface.normal, V)));
+    // else
+    // {
+    //     isSpecularRay = true;
+    //     float3 specularDirection = reflect(-V, surface.normal);
+    //     float3 specular_BRDF_over_PDF = Schlick_Fresnel(surface.specularF0, saturate(dot(surface.normal, V)));
 
-        ray.Direction = specularDirection;
-        BRDF_over_PDF = specular_BRDF_over_PDF;
+    //     ray.Direction = specularDirection;
+    //     BRDF_over_PDF = specular_BRDF_over_PDF;
 
-        // const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
-        const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
+    //     // const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
+    //     const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
 
-        guidedSamplePdf = 1.f;
+    //     guidedSamplePdf = 1.f;
 
-        // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
-        overall_PDF = diffuseLobe_PDF;
-    }
+    //     // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
+    //     overall_PDF = diffuseLobe_PDF;
+    // }
 
     if (dot(surface.geoNormal, ray.Direction) <= 0.0)
     {
@@ -520,11 +515,6 @@ void RayGen()
                         InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
                     }
                 }
-                u_DebugColor2[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
-            }
-            else 
-            {
-                u_DebugColor2[pixelPosition] = float4(gridId * 1.f / GRID_SIZE, 0.f, 0.f, 1.f);
             }
         }
     }

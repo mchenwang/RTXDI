@@ -10,7 +10,7 @@ RWByteAddressBuffer u_EnvGuidingStats : register(u1);
 [numthreads(64, 1, 1)]
 void main(uint3 GlobalIndex : SV_DispatchThreadID)
 {
-    if (GlobalIndex.x >= ENV_GUID_GRID_CELL_SIZE) return;
+    if (GlobalIndex.x >= WORLD_GRID_SIZE) return;
     // if (g_SetFlag == 1)
     // {
     //     u_EnvGuidingGridStatsBuffer[GlobalIndex.x].rayCnt = 0;

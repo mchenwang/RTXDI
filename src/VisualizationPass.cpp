@@ -84,10 +84,8 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
             .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
             .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.vMFBuffer))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.vMFDataBuffer))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(4, rtxdiResources.gridHashMapBuffer))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(5, rtxdiResources.gridHashMapLockBuffer))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.gridHashMapBuffer))
+            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.gridHashMapLockBuffer))
             ;
 
         nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_EnvVisLayout, m_EnvVisSet);
@@ -147,18 +145,6 @@ void VisualizationPass::Render(
             const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
             constants.resolutionScale.x = 1.f;
             constants.resolutionScale.y = 1.f;
-            // constants.resolutionScale.x = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION * 1.f) / upscaledViewport.width();
-            // constants.resolutionScale.y = (ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION * 1.f)  / upscaledViewport.height();
-            // state.setViewport(
-            //     nvrhi::ViewportState()
-            //     .addViewport(
-            //         nvrhi::Viewport(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION, 
-            //                         ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION))
-            //     .addScissorRect(
-            //         nvrhi::Rect(ENV_GUID_GRID_DIMENSIONS * ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION, 
-            //                     ENV_GUID_GRID_DIMENSIONS * ENV_GUID_RESOLUTION)));
-            // constants.resolutionScale.x = 1.f;
-            // constants.resolutionScale.y = 1.f;
         }
         else
         {
