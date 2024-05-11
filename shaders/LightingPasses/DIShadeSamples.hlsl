@@ -45,6 +45,8 @@ void RayGen()
 
     RTXDI_DIReservoir reservoir = RTXDI_LoadDIReservoir(g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.shadingInputBufferIndex);
 
+    RAB_RandomSamplerState rng = RAB_InitRandomSampler(GlobalIndex, 5);
+
     float3 diffuse = 0;
     float3 specular = 0;
     float lightDistance = 0;
@@ -93,7 +95,7 @@ void RayGen()
         //     }
         // }
 
-        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_ENABLE)
+        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
         {
             CacheEntry gridId;
             if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
@@ -104,12 +106,16 @@ void RayGen()
                 wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
                 wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, surface);
                 wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
-                wsrLightSample.random = 0.5f;
+                wsrLightSample.random = RAB_GetNextRandom(rng);// 0.5f;
 
-                uint index;
-                u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-                u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
-                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1);
+                uint sampleCnt;
+                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
+                // if (sampleCnt < 3)
+                {
+                    uint index;
+                    u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
+                    u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
+                }
             }
         }
 

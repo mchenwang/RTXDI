@@ -118,7 +118,7 @@ void UIData::ApplyPreset()
         restirDI.spatialResamplingParams.numSpatialSamples = 1;
         restirDI.spatialResamplingParams.numDisocclusionBoostSamples = 8;
         restirDI.shadingParams.reuseFinalVisibility = true;
-        lightingSettings.brdfptParams.enableSecondaryResampling = true;
+        lightingSettings.brdfptParams.enableSecondaryResampling = false;
         lightingSettings.brdfptParams.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialSamplingRadius = 1.f;
         lightingSettings.brdfptParams.secondarySurfaceReSTIRDIParams.spatialResamplingParams.numSpatialSamples = 1;
         lightingSettings.brdfptParams.secondarySurfaceReSTIRDIParams.spatialResamplingParams.spatialBiasCorrection = ReSTIRDI_SpatialBiasCorrectionMode::Basic;
@@ -400,8 +400,10 @@ void UserInterface::SamplingSettings()
 
     if (isOpen)
     {
-        static bool s_WSRUpdate = true;
-        ImGui::Checkbox("World Space Light Sample Update", &s_WSRUpdate);
+        static bool s_WSRUpdatePrimary = false;
+        static bool s_WSRUpdateSecondary = true;
+        ImGui::Checkbox("World Space Light Sample Update From Primary Ray", &s_WSRUpdatePrimary);
+        ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
 
         static bool s_TemploralReuse = true;
         ImGui::Checkbox("Temporal Resue", &s_TemploralReuse);
@@ -413,21 +415,20 @@ void UserInterface::SamplingSettings()
         ImGui::Checkbox("DI Enable", &s_DIEnable);
 
         static bool s_GIEnable = true;
-        static bool s_GICombine = false;
         ImGui::Checkbox("GI Enable", &s_GIEnable);
-        if (s_GIEnable)
-        {
-            // ImGui::Checkbox("GI Combine", &s_GICombine);
-        }
 
-        m_ui.worldSpaceReservoirFlag = (s_WSRUpdate ? 1 : 0);
+        static bool s_UseJitter = true;
+        ImGui::Checkbox("Sample With Jitter", &s_UseJitter);
+
+        m_ui.worldSpaceReservoirFlag = ((s_WSRUpdatePrimary | s_WSRUpdateSecondary) ? 1 : 0);
         m_ui.worldSpaceReservoirFlag |= (s_TemploralReuse ? (1 << 1) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_SpatialReuse ? (1 << 2) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_DIEnable ? (1 << 3) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_GIEnable ? (1 << 4) : 0);
-        m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 5) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_WSRUpdatePrimary ? (1 << 5) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
         
-
         if (ImGui::Button("Reset Reservoir"))
         {
             m_ui.worldSpaceReservoirResetFlag = true;
@@ -850,7 +851,7 @@ void UserInterface::SamplingSettings()
                 static const std::array<ResTIRGI_TemporalBiasCorrectionMode, 3> index2mode = { ResTIRGI_TemporalBiasCorrectionMode::Off,
                                                                                                ResTIRGI_TemporalBiasCorrectionMode::Basic,
                                                                                                ResTIRGI_TemporalBiasCorrectionMode::Raytraced };
-                const const char* currentTemporalResamplingModeOption = temporalResamplingOptions[mode2index.at(m_ui.restirGI.temporalResamplingParams.temporalBiasCorrectionMode)];
+                const char* currentTemporalResamplingModeOption = temporalResamplingOptions[mode2index.at(m_ui.restirGI.temporalResamplingParams.temporalBiasCorrectionMode)];
                 if(ImGui::BeginCombo(biasCorrectionText, currentTemporalResamplingModeOption))
                 {
                     for (int i = 0; i < sizeof(temporalResamplingOptions) / sizeof(temporalResamplingOptions[0]); i++)

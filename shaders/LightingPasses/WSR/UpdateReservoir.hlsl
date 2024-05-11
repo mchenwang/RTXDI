@@ -27,7 +27,7 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint3
 
     WSRGridStats stats = u_WorldSpaceGridStatsBuffer[gridId];
 
-    RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+    RTXDI_DIReservoir newReservoir = RTXDI_EmptyDIReservoir();
 
     uint offset = GTid.x * 32 + stats.offset;
     for (uint i = 0; i < 32; ++i)
@@ -38,7 +38,15 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint3
         WSRLightSample lightSample = t_WorldSpaceLightSamplesBuffer[index];
         if (lightSample.gridId != gridId) break;
 
-        RTXDI_StreamSample(state, lightSample.lightIndex, lightSample.uv, lightSample.random, lightSample.targetPdf, lightSample.invSourcePdf);
+        RTXDI_StreamSample(newReservoir, lightSample.lightIndex, lightSample.uv, lightSample.random, lightSample.targetPdf, lightSample.invSourcePdf);
+    }
+    RTXDI_FinalizeResampling(newReservoir, 1.0, newReservoir.M);
+    newReservoir.M = 1;
+
+    RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+    if (RTXDI_IsValidDIReservoir(newReservoir))
+    {
+        RTXDI_CombineDIReservoirs(state, newReservoir, 0.5f, newReservoir.targetPdf);
     }
 
     RTXDI_DIReservoir preState = RTXDI_UnpackDIReservoir(u_WorldSpaceLightReservoirs[gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + GTid.x]);

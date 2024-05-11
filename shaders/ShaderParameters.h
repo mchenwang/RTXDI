@@ -384,7 +384,7 @@ struct EnvVisibilityVisualizationConstants
 
 #define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   1000000
 #define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        10000
-// the number of reservoirs in a grid (not bigger than 32 or 64?)
+// the number of reservoirs in a grid (not bigger than 32 or 64 is better)
 #define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  32
 #define WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM     (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * 32)
 
@@ -393,7 +393,10 @@ struct EnvVisibilityVisualizationConstants
 #define WORLD_SPACE_RESERVOIR_SPATIAL_ENABLE    (1 << 2)
 #define WORLD_SPACE_RESERVOIR_DI_ENABLE         (1 << 3)
 #define WORLD_SPACE_RESERVOIR_GI_ENABLE         (1 << 4)
-#define WORLD_SPACE_RESERVOIR_GI_COMBINE        (1 << 5)
+#define WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY    (1 << 5)
+#define WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY  (1 << 6)
+
+#define WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER (1 << 7)
 
 struct WSRLightSample
 {
