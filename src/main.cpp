@@ -330,8 +330,8 @@ public:
         m_Scene->FinishedLoading(GetFrameIndex());
 
         // m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
-        float3 pos = float3(-0.2385f, 1.926f, 5.215f);
-        float3 dir = float3(-0.02254f, -0.05497f, -0.9982f);
+        float3 pos = float3(-1.113f, 1.748f, -1.514f);
+        float3 dir = float3(0.9909f, -0.1346f, 0.006566f);
         m_Camera.LookAt(pos, pos + dir);
         m_Camera.SetMoveSpeed(3.f);
 

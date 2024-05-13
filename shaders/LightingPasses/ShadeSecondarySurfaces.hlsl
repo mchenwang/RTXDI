@@ -101,7 +101,8 @@ void RayGen()
 
         RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
         
-        if (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE))
+        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_COMBINE) || 
+            (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)))
         {
             reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
                     sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
@@ -118,6 +119,7 @@ void RayGen()
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {
             float3 posJitter = float3(0.f, 0.f, 0.f);
+            float3 normal = secondarySurface.normal;
 
             if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER)
             {
@@ -126,12 +128,21 @@ void RayGen()
                 float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
                 posJitter = tangent * t.x + bitangent * t.y;
                 posJitter *= g_Const.sceneGridScale;
+
+                // t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
+                // const float sin_theta = sqrt(t.x);
+                // const float phi = 2.0f * c_pi * t.y;
+                // normal.x = sin_theta * cos(phi);
+                // normal.y = sin_theta * sin(phi);
+                // normal.z = sqrt(max(0.f, 1.f - sin_theta * sin_theta));
+
+                // normal = ToWorld(normal, tangent, bitangent, secondarySurface.normal);
             }
         
             CacheEntry gridId;
-            if (FindEntry(secondarySurface.worldPos + posJitter, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
+            if (FindEntry(secondarySurface.worldPos + posJitter, normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
             {
-                uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + 
+                uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + //0;
                     clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
                 RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[wsReservoirIndex]);
 
@@ -144,7 +155,7 @@ void RayGen()
                         RTXDI_GetDIReservoirSampleUV(wsReservoir));
 
                     RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
-                    if(RTXDI_CombineDIReservoirs(state, wsReservoir, RAB_GetNextRandom(rng), wsReservoir.targetPdf))
+                    if(RTXDI_CombineDIReservoirs(state, wsReservoir, 0.5f, wsReservoir.targetPdf))
                         tempLightSample = wsLightSample;
                     
                     if(RTXDI_CombineDIReservoirs(state, reservoir, RAB_GetNextRandom(rng), reservoir.targetPdf))
@@ -188,35 +199,6 @@ void RayGen()
             }
         }
 
-        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-            //&& calcLuminance(indirectDiffuse) > 0.f
-            && RTXDI_IsValidDIReservoir(reservoir)
-            )
-        {
-            CacheEntry gridId;
-            if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
-            {
-                WSRLightSample wsrLightSample = (WSRLightSample)0;
-                wsrLightSample.gridId = gridId;
-                wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
-                wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
-                wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface);
-                wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
-                wsrLightSample.random = RAB_GetNextRandom(rng);
-
-                uint sampleCnt;
-                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-                // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM)
-                {
-                    uint index;
-                    u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-                    u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
-                }
-            }
-            // u_DebugColor1[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
-            // u_DebugColor2[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
-        }
-
         float3 indirectDiffuse = 0;
         float3 indirectSpecular = 0;
         float lightDistance = 0;
@@ -229,6 +211,63 @@ void RayGen()
         float indirectLuminance = calcLuminance(radiance);
         if (indirectLuminance > c_MaxIndirectRadiance)
             radiance *= c_MaxIndirectRadiance / indirectLuminance;
+
+
+        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+            //&& calcLuminance(indirectDiffuse) > 0.f
+            // && RTXDI_IsValidDIReservoir(reservoir)
+            )
+        {
+            RTXDI_DIReservoir temp = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
+                    sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
+#if RTXDI_ENABLE_PRESAMPLING
+                g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
+#if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
+                g_Const.regir,
+#endif
+#endif
+                lightSample);
+
+            RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+            RTXDI_CombineDIReservoirs(state, temp, 0.5f, temp.targetPdf);
+            RTXDI_CombineDIReservoirs(state, reservoir, RAB_GetNextRandom(rng), reservoir.targetPdf);
+            RTXDI_FinalizeResampling(state, 1.0, state.M);
+            reservoir = state;            
+
+            CacheEntry gridId;
+            if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
+            {
+                WSRLightSample wsrLightSample = (WSRLightSample)0;
+                wsrLightSample.gridId = gridId;
+                wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
+                wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
+                wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface) * 10.f;
+                wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
+                wsrLightSample.random = RAB_GetNextRandom(rng);
+
+                uint sampleCnt;
+                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
+                // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM)
+                {
+                    uint index;
+                    u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
+                    u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
+                }
+
+                float3 V = secondarySurface.viewDir;
+                float3 L = normalize(lightSample.position - secondarySurface.worldPos);
+                float d = Lambert(secondarySurface.normal, -L);
+                float3 s = GGX_times_NdotL(V, L, secondarySurface.normal, secondarySurface.roughness, secondarySurface.specularF0);
+
+                // float3 reflectedRadiance = lightSample.radiance * (d * secondarySurface.diffuseAlbedo + s);
+                
+                
+                u_DebugColor2[pixelPosition] = float4(secondarySurface.diffuseAlbedo, 1.f);
+                u_DebugColor1[pixelPosition] = float4(lightSample.radiance * (d * secondarySurface.diffuseAlbedo + s) / lightSample.solidAnglePdf, 1.f);
+            }
+            // u_DebugColor1[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
+            // u_DebugColor2[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
+        }
     }
 
     bool outputShadingResult = true;

@@ -400,10 +400,12 @@ void UserInterface::SamplingSettings()
 
     if (isOpen)
     {
-        static bool s_WSRUpdatePrimary = false;
-        static bool s_WSRUpdateSecondary = true;
+        static bool s_WSRUpdatePrimary = true;
+        static bool s_WSRUpdateSecondary = false;
+        static bool s_WSRUpdateBrdf = false;
         ImGui::Checkbox("World Space Light Sample Update From Primary Ray", &s_WSRUpdatePrimary);
         ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
+        ImGui::Checkbox("World Space Light Sample Update From Brdf Ray", &s_WSRUpdateBrdf);
 
         static bool s_TemploralReuse = true;
         ImGui::Checkbox("Temporal Resue", &s_TemploralReuse);
@@ -415,19 +417,26 @@ void UserInterface::SamplingSettings()
         ImGui::Checkbox("DI Enable", &s_DIEnable);
 
         static bool s_GIEnable = true;
+        static bool s_GICombine = true;
         ImGui::Checkbox("GI Enable", &s_GIEnable);
+        if (s_GIEnable)
+        {
+            ImGui::Checkbox("GI Combine", &s_GICombine);
+        }
 
         static bool s_UseJitter = true;
         ImGui::Checkbox("Sample With Jitter", &s_UseJitter);
 
-        m_ui.worldSpaceReservoirFlag = ((s_WSRUpdatePrimary | s_WSRUpdateSecondary) ? 1 : 0);
+        m_ui.worldSpaceReservoirFlag = ((s_WSRUpdatePrimary | s_WSRUpdateSecondary | s_WSRUpdateBrdf) ? 1 : 0);
         m_ui.worldSpaceReservoirFlag |= (s_TemploralReuse ? (1 << 1) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_SpatialReuse ? (1 << 2) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_DIEnable ? (1 << 3) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_GIEnable ? (1 << 4) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdatePrimary ? (1 << 5) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateBrdf ? (1 << 8) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
         
         if (ImGui::Button("Reset Reservoir"))
         {
