@@ -553,7 +553,7 @@ void RayGen()
 
                 uint sampleCnt;
                 InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-                if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM)
+                if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
                 {
                     uint index;
                     u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);

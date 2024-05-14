@@ -330,8 +330,8 @@ public:
         m_Scene->FinishedLoading(GetFrameIndex());
 
         // m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
-        float3 pos = float3(-1.113f, 1.748f, -1.514f);
-        float3 dir = float3(0.9909f, -0.1346f, 0.006566f);
+        float3 pos = float3(-1.837f, 1.573f, -5.432f);
+        float3 dir = float3(0.9982f, 0.05996f, 0.001624f);
         m_Camera.LookAt(pos, pos + dir);
         m_Camera.SetMoveSpeed(3.f);
 
@@ -1227,8 +1227,11 @@ public:
 
         const bool checkerboard = restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off;
 
+        bool enableWSRGenerateSamplesPass = m_ui.directLightingMode == DirectLightingMode::WSR;
         bool enableDirectReStirPass = m_ui.directLightingMode == DirectLightingMode::ReStir;
-        bool enableBrdfAndIndirectPass = m_ui.directLightingMode == DirectLightingMode::Brdf || m_ui.indirectLightingMode != IndirectLightingMode::None;
+        bool enableBrdfAndIndirectPass = m_ui.directLightingMode == DirectLightingMode::Brdf || 
+                                        //  m_ui.directLightingMode == DirectLightingMode::WSR ||
+                                         m_ui.indirectLightingMode != IndirectLightingMode::None;
         bool enableIndirect = m_ui.indirectLightingMode != IndirectLightingMode::None;
 
         // When indirect lighting is enabled, we don't want ReSTIR to be the NRD front-end,
@@ -1246,7 +1249,7 @@ public:
             lightingSettings.enableGradients = false;
         }
 
-        if (enableDirectReStirPass || enableIndirect)
+        if (enableDirectReStirPass || enableIndirect || enableWSRGenerateSamplesPass)
         {
             m_LightingPasses->PrepareForLightSampling(m_CommandList,
                 *m_isContext,
@@ -1254,6 +1257,15 @@ public:
                 lightingSettings,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 m_ui.worldSpaceReservoirFlag);
+        
+            if (enableWSRGenerateSamplesPass)
+            {
+                m_LightingPasses->WSRDirectLightingSample(m_CommandList,
+                    *m_isContext,
+                    m_View, m_ViewPrevious,
+                    lightingSettings,
+                    m_ui.worldSpaceReservoirFlag);
+            }
         }
 
         if (enableDirectReStirPass)
@@ -1289,26 +1301,14 @@ public:
                 m_ui.gbufferSettings,
                 *m_EnvironmentLight,
                 /* enableIndirect = */ enableIndirect,
-                /* enableAdditiveBlend = */ enableDirectReStirPass,
-                /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf,
+                /* enableAdditiveBlend = */ enableDirectReStirPass | enableWSRGenerateSamplesPass,
+                /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf || m_ui.directLightingMode == DirectLightingMode::WSR,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 enableReSTIRGI,
                 m_ui.guidingFlag,
                 m_ui.worldSpaceReservoirFlag
                 );
         }
-
-        // if (m_ui.vmfResetFlag)
-        // {
-        //     m_ui.vmfResetFlag = false;
-        //     // m_CalculateEnvVisCdfPass->ResetEnvMap(m_CommandList);
-        //     m_VMFPass->ResetModel(m_CommandList);
-        // }
-        // else// if (m_RenderFrameIndex % 20 == 0)
-        // {
-        //     // m_CalculateEnvVisCdfPass->Process(m_CommandList);
-        //     m_VMFPass->ProcessUpdate(m_CommandList);
-        // }
 
         if (m_ui.guidingResetFlag)
         {
@@ -1332,7 +1332,7 @@ public:
 
         // If none of the passes above were executed, clear the textures to avoid stale data there.
         // It's a weird mode but it can be selected from the UI.
-        if (!enableDirectReStirPass && !enableBrdfAndIndirectPass)
+        if (!enableDirectReStirPass && !enableBrdfAndIndirectPass && !enableWSRGenerateSamplesPass)
         {
             m_CommandList->clearTextureFloat(m_RenderTargets->DiffuseLighting, nvrhi::AllSubresources, nvrhi::Color(0.f));
             m_CommandList->clearTextureFloat(m_RenderTargets->SpecularLighting, nvrhi::AllSubresources, nvrhi::Color(0.f));

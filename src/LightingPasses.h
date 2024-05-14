@@ -70,6 +70,7 @@ private:
     ComputePass m_PresampleEnvironmentMapPass;
     ComputePass m_PresampleReGIR;
     RayTracingPass m_GenerateInitialSamplesPass;
+    RayTracingPass m_WSRDirectLightingSamplePass;
     RayTracingPass m_TemporalResamplingPass;
     RayTracingPass m_SpatialResamplingPass;
     RayTracingPass m_ShadeSamplesPass;
@@ -154,6 +155,14 @@ public:
         const donut::engine::IView& previousView,
         const RenderSettings& localSettings,
         bool enableAccumulation,
+        uint32_t wsrFlag = 0);
+
+    void WSRDirectLightingSample(
+        nvrhi::ICommandList* commandList,
+        rtxdi::ImportanceSamplingContext& context,
+        const donut::engine::IView& view,
+        const donut::engine::IView& previousView,
+        const RenderSettings& localSettings,
         uint32_t wsrFlag = 0);
 
     void RenderDirectLighting(

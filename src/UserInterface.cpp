@@ -407,14 +407,19 @@ void UserInterface::SamplingSettings()
         ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
         ImGui::Checkbox("World Space Light Sample Update From Brdf Ray", &s_WSRUpdateBrdf);
 
-        static bool s_TemploralReuse = true;
-        ImGui::Checkbox("Temporal Resue", &s_TemploralReuse);
+        static bool s_TemploralReuse = false;
+        // ImGui::Checkbox("Temporal Resue", &s_TemploralReuse);
 
-        static bool s_SpatialReuse = true;
-        ImGui::Checkbox("Spatial Resue", &s_SpatialReuse);
+        static bool s_SpatialReuse = false;
+        // ImGui::Checkbox("Spatial Resue", &s_SpatialReuse);
 
         static bool s_DIEnable = false;
+        static bool s_DICombine = true;
         ImGui::Checkbox("DI Enable", &s_DIEnable);
+        if (s_DIEnable)
+        {
+            ImGui::Checkbox("DI Combine", &s_DICombine);
+        }
 
         static bool s_GIEnable = true;
         static bool s_GICombine = true;
@@ -437,6 +442,7 @@ void UserInterface::SamplingSettings()
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateBrdf ? (1 << 8) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_DICombine ? (1 << 10) : 0);
         
         if (ImGui::Button("Reset Reservoir"))
         {
@@ -506,6 +512,7 @@ void UserInterface::SamplingSettings()
             "None\0"
             "BRDF\0"
             "ReSTIR\0"
+            "World Space ReSTIR\0"
         );
         switch(m_ui.directLightingMode)
         {
@@ -522,6 +529,10 @@ void UserInterface::SamplingSettings()
         case DirectLightingMode::ReStir:
             ShowHelpMarker(
                 "Sample the direct lighting using ReSTIR.");
+            break;
+        case DirectLightingMode::WSR:
+            ShowHelpMarker(
+                "Generate initital samples for world space reservoirs and shade with direct lighting.");
             break;
         }
 

@@ -342,6 +342,7 @@ void LightingPasses::createReGIRPipeline(const rtxdi::ReGIRStaticParameters& reg
 
 void LightingPasses::createReSTIRDIPipelines(const std::vector<donut::engine::ShaderMacro>& regirMacros, bool useRayQuery)
 {
+    m_WSRDirectLightingSamplePass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/WSRDirectLightingSample.hlsl", regirMacros, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_GenerateInitialSamplesPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DIGenerateInitialSamples.hlsl", regirMacros, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_TemporalResamplingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DITemporalResampling.hlsl", {}, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_SpatialResamplingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DISpatialResampling.hlsl", {}, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
@@ -555,6 +556,41 @@ void LightingPasses::PrepareForLightSampling(
 
         ExecuteComputePass(commandList, m_PresampleReGIR, "PresampleReGIR", worldGridDispatchSize, ProfilerSection::PresampleReGIR);
     }
+}
+
+
+void LightingPasses::WSRDirectLightingSample(
+    nvrhi::ICommandList* commandList,
+    rtxdi::ImportanceSamplingContext& isContext,
+    const donut::engine::IView& view,
+    const donut::engine::IView& previousView,
+    const RenderSettings& localSettings,
+    uint wsrFlag)
+{
+    rtxdi::ReSTIRDIContext& restirDIContext = isContext.getReSTIRDIContext();
+    rtxdi::ReGIRContext& regirContext = isContext.getReGIRContext();
+
+    ResamplingConstants constants = {};
+    constants.frameIndex = restirDIContext.getFrameIndex();
+    view.FillPlanarViewConstants(constants.view);
+    previousView.FillPlanarViewConstants(constants.prevView);
+    FillResamplingConstants(constants, localSettings, isContext);
+    constants.worldSpaceReservoirFlag = wsrFlag;
+    constants.restirDI.initialSamplingParams.environmentMapImportanceSampling = 1;
+
+    commandList->writeBuffer(m_ConstantBuffer, &constants, sizeof(constants));
+
+    dm::int2 dispatchSize = { 
+        view.GetViewExtent().width(),
+        view.GetViewExtent().height()
+    };
+
+    if (restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off)
+        dispatchSize.x /= 2;
+
+    // nvrhi::utils::BufferUavBarrier(commandList, m_LightReservoirBuffer);
+
+    ExecuteRayTracingPass(commandList, m_WSRDirectLightingSamplePass, localSettings.enableRayCounts, "WSRDirectLightingSample", dispatchSize, ProfilerSection::WSRDirectLightingSample);
 }
 
 void LightingPasses::RenderDirectLighting(

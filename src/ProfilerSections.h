@@ -23,6 +23,7 @@ struct ProfilerSection
         PresampleEnvMap,
         PresampleReGIR,
         InitialSamples,
+        WSRDirectLightingSample,
         TemporalResampling,
         SpatialResampling,
         Shading,

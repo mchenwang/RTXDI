@@ -89,16 +89,6 @@ void RayGen()
             0.f);   // brdfMinRayT
 
         RAB_LightSample lightSample = RAB_EmptyLightSample();
-//         RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
-//             sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
-// #if RTXDI_ENABLE_PRESAMPLING
-//         g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
-// #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
-//         g_Const.regir,
-// #endif
-// #endif
-//         lightSample);
-
         RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
         
         if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_COMBINE) || 
@@ -142,30 +132,34 @@ void RayGen()
             CacheEntry gridId;
             if (FindEntry(secondarySurface.worldPos + posJitter, normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
             {
-                uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + //0;
-                    clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
-                RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[wsReservoirIndex]);
-
-                if (RTXDI_IsValidDIReservoir(wsReservoir))
+                RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+                RAB_LightSample tempLightSample = RAB_EmptyLightSample();
+                if(RTXDI_CombineDIReservoirs(state, reservoir, 0.5f, reservoir.targetPdf))
                 {
-                    RAB_LightSample tempLightSample = RAB_EmptyLightSample();
+                    tempLightSample = lightSample;
+                }
+
+                for (uint i = 0; i < WORLD_SPACE_RESERVOIR_NUM_PER_GRID; ++i)
+                {
+                    uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + i;
+                    RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[wsReservoirIndex]);
                     RAB_LightSample wsLightSample = RAB_SamplePolymorphicLight(
                         RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(wsReservoir), false), 
                         secondarySurface, 
                         RTXDI_GetDIReservoirSampleUV(wsReservoir));
 
-                    RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
-                    if(RTXDI_CombineDIReservoirs(state, wsReservoir, 0.5f, wsReservoir.targetPdf))
+                    float targetPdf = 0.f;
+                    if (RTXDI_IsValidDIReservoir(wsReservoir))
+                        targetPdf = RAB_GetLightSampleTargetPdfForSurface(wsLightSample, secondarySurface);
+                    if(RTXDI_CombineDIReservoirs(state, wsReservoir, RAB_GetNextRandom(rng), targetPdf))
+                    {
                         tempLightSample = wsLightSample;
-                    
-                    if(RTXDI_CombineDIReservoirs(state, reservoir, RAB_GetNextRandom(rng), reservoir.targetPdf))
-                        tempLightSample = lightSample;
-
-                    RTXDI_FinalizeResampling(state, 1.0, state.M);
-
-                    reservoir = state;
-                    lightSample = tempLightSample;
+                    }
                 }
+                RTXDI_FinalizeResampling(state, 1.0, state.M);
+
+                reservoir = state;
+                lightSample = tempLightSample;
             }
         }
 
@@ -213,10 +207,7 @@ void RayGen()
             radiance *= c_MaxIndirectRadiance / indirectLuminance;
 
 
-        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-            //&& calcLuminance(indirectDiffuse) > 0.f
-            // && RTXDI_IsValidDIReservoir(reservoir)
-            )
+        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY))
         {
             RTXDI_DIReservoir temp = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
                     sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
@@ -247,26 +238,13 @@ void RayGen()
 
                 uint sampleCnt;
                 InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-                // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_RESERVOIR_MAX_NUM)
+                // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
                 {
                     uint index;
                     u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
                     u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
                 }
-
-                float3 V = secondarySurface.viewDir;
-                float3 L = normalize(lightSample.position - secondarySurface.worldPos);
-                float d = Lambert(secondarySurface.normal, -L);
-                float3 s = GGX_times_NdotL(V, L, secondarySurface.normal, secondarySurface.roughness, secondarySurface.specularF0);
-
-                // float3 reflectedRadiance = lightSample.radiance * (d * secondarySurface.diffuseAlbedo + s);
-                
-                
-                u_DebugColor2[pixelPosition] = float4(secondarySurface.diffuseAlbedo, 1.f);
-                u_DebugColor1[pixelPosition] = float4(lightSample.radiance * (d * secondarySurface.diffuseAlbedo + s) / lightSample.solidAnglePdf, 1.f);
             }
-            // u_DebugColor1[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
-            // u_DebugColor2[pixelPosition] = float4(gridId * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
         }
     }
 

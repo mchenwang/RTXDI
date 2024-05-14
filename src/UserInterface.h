@@ -43,7 +43,8 @@ enum class DirectLightingMode : uint32_t
 {
     None,
     Brdf,
-    ReStir
+    ReStir,
+    WSR
 };
 
 enum class IndirectLightingMode : uint32_t
@@ -138,8 +139,8 @@ struct UIData
 
     // DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
     // IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
-    DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
-    IndirectLightingMode indirectLightingMode = IndirectLightingMode::Brdf;
+    DirectLightingMode directLightingMode = DirectLightingMode::WSR;
+    IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
     uint32_t guidingFlag = 0;
     bool guidingResetFlag = false;
     
