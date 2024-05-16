@@ -41,33 +41,47 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint3
         WSRLightSample lightSample = t_WorldSpaceLightSamplesBuffer[index];
         if (lightSample.gridId != gridId) break;
 
+        if (lightSample.lightIndex == 0) continue;
+
         rand += lightSample.random;
         RTXDI_StreamSample(newReservoir, lightSample.lightIndex, lightSample.uv, lightSample.random, lightSample.targetPdf, lightSample.invSourcePdf);
+        // RTXDI_StreamSample(newReservoir, lightSample.lightIndex, lightSample.uv, lightSample.random, 1, lightSample.invSourcePdf);
     }
     rand /= newReservoir.M;
     RTXDI_FinalizeResampling(newReservoir, 1.0, newReservoir.M);
-    newReservoir.M = 1;
+    // newReservoir.M = 1;
 
     RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
-    RTXDI_CombineDIReservoirs(state, newReservoir, 0.5f, newReservoir.targetPdf);
+
+    // if (RTXDI_IsValidDIReservoir(newReservoir))
+        RTXDI_CombineDIReservoirs(state, newReservoir, 0.5f, newReservoir.targetPdf);
 
     uint reservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + ((GTid.x + iterateCnt) % WORLD_SPACE_RESERVOIR_NUM_PER_GRID);
+    // uint reservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + GTid.x;
     RTXDI_DIReservoir preReservoir = RTXDI_UnpackDIReservoir(u_WorldSpaceLightReservoirs[reservoirIndex]);
-    
-    if (preReservoir.age > 30)
+
+    // if (RTXDI_IsValidDIReservoir(preReservoir))
     {
-        preReservoir = RTXDI_EmptyDIReservoir();
+        // if (preReservoir.age > 30)
+        // {
+        //     preReservoir = RTXDI_EmptyDIReservoir();
+        // }
+
+        uint maxReuseNum = state.M * 20;
+        preReservoir.M = min(preReservoir.M, maxReuseNum);
+        
+        float targetPdf = 0.f;
+        if (RTXDI_IsValidDIReservoir(preReservoir))
+            targetPdf = preReservoir.targetPdf;
+            // targetPdf = 1.f;
+        
+        if (RTXDI_CombineDIReservoirs(state, preReservoir, 1.0 - rand, targetPdf))
+            state.age++;
     }
     
-    float targetPdf = 0.f;
-    if (RTXDI_IsValidDIReservoir(preReservoir))
-        targetPdf = preReservoir.targetPdf;
-    
-    RTXDI_CombineDIReservoirs(state, preReservoir, rand, targetPdf);
     RTXDI_FinalizeResampling(state, 1.0, state.M);
-    state.M = 1;
-    state.age++;
-
+    // state.M = 1;
+    
     u_WorldSpaceLightReservoirs[reservoirIndex] = RTXDI_PackDIReservoir(state);
 
     // reservoir_cache[GTid.x] = state;

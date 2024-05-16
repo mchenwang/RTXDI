@@ -23,7 +23,7 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
-#include "HashGridHelper.hlsli"
+#include "WSRSampleHelper.hlsli"
 
 #if USE_RAY_QUERY
 [numthreads(RTXDI_SCREEN_SPACE_GROUP_SIZE, RTXDI_SCREEN_SPACE_GROUP_SIZE, 1)]
@@ -97,26 +97,7 @@ void RayGen()
 
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
         {
-            CacheEntry gridId;
-            if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
-            {
-                WSRLightSample wsrLightSample = (WSRLightSample)0;
-                wsrLightSample.gridId = gridId;
-                wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
-                wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
-                wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, surface);
-                wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
-                wsrLightSample.random = RAB_GetNextRandom(rng);// 0.5f;
-
-                uint sampleCnt;
-                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-                // if (sampleCnt < 3)
-                {
-                    uint index;
-                    u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-                    u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
-                }
-            }
+            StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);
         }
 
         bool needToStore = ShadeSurfaceWithLightSample(reservoir, surface, lightSample,

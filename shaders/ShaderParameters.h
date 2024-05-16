@@ -382,11 +382,11 @@ struct EnvVisibilityVisualizationConstants
     uint3 pad;
 };
 
-#define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   1000000
+#define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   10000000
 #define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        10000
 // the number of reservoirs in a grid (not bigger than 32 or 64 is better)
-#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  16
-#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          128
+#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  8
+#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          256
 #define WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM          (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR)
 
 #define WORLD_SPACE_RESERVOIR_UPDATE_ENABLE     (1)

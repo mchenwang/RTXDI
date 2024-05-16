@@ -273,15 +273,15 @@ void RayGen()
     float3 BRDF_over_PDF = 0.f;
     float overall_PDF;
 
-    float guidedSamplePdf = 0.f;
+    // float guidedSamplePdf = 0.f;
     if (!isDeltaSurface)
     {
-        if (g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI)
-        {
-            GuidedSample(surface, V, tangent, bitangent, rng, 
-                ray.Direction, BRDF_over_PDF, isSpecularRay, overall_PDF, guidedSamplePdf, pixelPosition);
-        }
-        else
+    //     if (g_Const.guidingFlag & GUIDING_FLAG_GUIDE_DI)
+    //     {
+    //         GuidedSample(surface, V, tangent, bitangent, rng, 
+    //             ray.Direction, BRDF_over_PDF, isSpecularRay, overall_PDF, guidedSamplePdf, pixelPosition);
+    //     }
+    //     else
         {
             float2 Rand;
             Rand.x = RAB_GetNextRandom(rng);
@@ -330,14 +330,14 @@ void RayGen()
             const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
             const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
 
-            if (isSpecularRay)
-            {
-                guidedSamplePdf = specular_PDF * specularLobe_PDF;
-            }
-            else
-            {
-                guidedSamplePdf = (1.f - specular_PDF) * diffuseLobe_PDF;
-            }
+            // if (isSpecularRay)
+            // {
+            //     guidedSamplePdf = specular_PDF * specularLobe_PDF;
+            // }
+            // else
+            // {
+            //     guidedSamplePdf = (1.f - specular_PDF) * diffuseLobe_PDF;
+            // }
 
             // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
             overall_PDF = isDeltaSurface ? diffuseLobe_PDF : lerp(diffuseLobe_PDF, specularLobe_PDF, specular_PDF);
@@ -355,7 +355,7 @@ void RayGen()
         // const float specularLobe_PDF = ImportanceSampleGGX_VNDF_PDF(surface.roughness, surface.normal, V, ray.Direction);
         const float diffuseLobe_PDF = saturate(dot(ray.Direction, surface.normal)) / c_pi;
 
-        guidedSamplePdf = 1.f;
+        // guidedSamplePdf = 1.f;
 
         // For delta surfaces, we only pass the diffuse lobe to ReSTIR GI, and this pdf is for that.
         overall_PDF = diffuseLobe_PDF;
@@ -494,29 +494,29 @@ void RayGen()
         secondarySurface.roughness = 0;
         secondarySurface.isEnvironmentMap = true;
 
-        if (g_Const.guidingFlag & GUIDING_FLAG_UPDATE_ENABLE)
-        {
-            CacheEntry gridId;
+        // if (g_Const.guidingFlag & GUIDING_FLAG_UPDATE_ENABLE)
+        // {
+        //     CacheEntry gridId;
 
-            if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
-            {
-                EnvRadianceData data = (EnvRadianceData)0;
-                data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
-                data.gridId = gridId;
-                data.dir = normalize(ray.Direction);//ToLocal(ray.Direction, tangent, bitangent, surface.normal);
+        //     if (TryInsertEntry(surface.worldPos, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
+        //     {
+        //         EnvRadianceData data = (EnvRadianceData)0;
+        //         data.radianceLuminance = calcLuminance(radiance * BRDF_over_PDF);
+        //         data.gridId = gridId;
+        //         data.dir = normalize(ray.Direction);//ToLocal(ray.Direction, tangent, bitangent, surface.normal);
 
-                uint index = u_EnvGuidingStats.Load(0);
-                if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
-                {
-                    u_EnvGuidingStats.InterlockedAdd(0, 1, index);
-                    if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
-                    {
-                        u_EnvRandianceBuffer[index] = data;
-                        InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
-                    }
-                }
-            }
-        }
+        //         uint index = u_EnvGuidingStats.Load(0);
+        //         if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+        //         {
+        //             u_EnvGuidingStats.InterlockedAdd(0, 1, index);
+        //             if (index < ENV_GUID_MAX_TEMP_RAY_NUM)
+        //             {
+        //                 u_EnvRandianceBuffer[index] = data;
+        //                 InterlockedAdd(u_EnvGuidingGridStatsBuffer[data.gridId].rayCnt, 1);
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     if (calcLuminance(radiance * BRDF_over_PDF) > 0.f)

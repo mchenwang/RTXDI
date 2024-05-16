@@ -26,6 +26,7 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
+#include "WSRSampleHelper.hlsli"
 
 static const float c_MaxIndirectRadiance = 10;
 
@@ -105,62 +106,10 @@ void RayGen()
                 lightSample);
         }
         
-        // else
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {
-            float3 posJitter = float3(0.f, 0.f, 0.f);
-            float3 normal = secondarySurface.normal;
-
-            if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER)
-            {
-                float3 tangent, bitangent;
-                branchlessONB(secondarySurface.normal, tangent, bitangent);
-                float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
-                posJitter = tangent * t.x + bitangent * t.y;
-                posJitter *= g_Const.sceneGridScale;
-
-                // t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
-                // const float sin_theta = sqrt(t.x);
-                // const float phi = 2.0f * c_pi * t.y;
-                // normal.x = sin_theta * cos(phi);
-                // normal.y = sin_theta * sin(phi);
-                // normal.z = sqrt(max(0.f, 1.f - sin_theta * sin_theta));
-
-                // normal = ToWorld(normal, tangent, bitangent, secondarySurface.normal);
-            }
-        
-            CacheEntry gridId;
-            if (FindEntry(secondarySurface.worldPos + posJitter, normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
-            {
-                RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
-                RAB_LightSample tempLightSample = RAB_EmptyLightSample();
-                if(RTXDI_CombineDIReservoirs(state, reservoir, 0.5f, reservoir.targetPdf))
-                {
-                    tempLightSample = lightSample;
-                }
-
-                for (uint i = 0; i < WORLD_SPACE_RESERVOIR_NUM_PER_GRID; ++i)
-                {
-                    uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + i;
-                    RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[wsReservoirIndex]);
-                    RAB_LightSample wsLightSample = RAB_SamplePolymorphicLight(
-                        RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(wsReservoir), false), 
-                        secondarySurface, 
-                        RTXDI_GetDIReservoirSampleUV(wsReservoir));
-
-                    float targetPdf = 0.f;
-                    if (RTXDI_IsValidDIReservoir(wsReservoir))
-                        targetPdf = RAB_GetLightSampleTargetPdfForSurface(wsLightSample, secondarySurface);
-                    if(RTXDI_CombineDIReservoirs(state, wsReservoir, RAB_GetNextRandom(rng), targetPdf))
-                    {
-                        tempLightSample = wsLightSample;
-                    }
-                }
-                RTXDI_FinalizeResampling(state, 1.0, state.M);
-
-                reservoir = state;
-                lightSample = tempLightSample;
-            }
+            bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
+            SampleWorldSpaceReservoir(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, useJitter);
         }
 
         if (g_Const.brdfPT.enableSecondaryResampling)
@@ -225,26 +174,27 @@ void RayGen()
             RTXDI_FinalizeResampling(state, 1.0, state.M);
             reservoir = state;            
 
-            CacheEntry gridId;
-            if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
-            {
-                WSRLightSample wsrLightSample = (WSRLightSample)0;
-                wsrLightSample.gridId = gridId;
-                wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
-                wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
-                wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface) * 10.f;
-                wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
-                wsrLightSample.random = RAB_GetNextRandom(rng);
+            StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale);
+            // CacheEntry gridId;
+            // if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
+            // {
+            //     WSRLightSample wsrLightSample = (WSRLightSample)0;
+            //     wsrLightSample.gridId = gridId;
+            //     wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
+            //     wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
+            //     wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface) * 10.f;
+            //     wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
+            //     wsrLightSample.random = RAB_GetNextRandom(rng);
 
-                uint sampleCnt;
-                InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-                // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
-                {
-                    uint index;
-                    u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-                    u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
-                }
-            }
+            //     uint sampleCnt;
+            //     InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
+            //     // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
+            //     {
+            //         uint index;
+            //         u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
+            //         u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
+            //     }
+            // }
         }
     }
 
