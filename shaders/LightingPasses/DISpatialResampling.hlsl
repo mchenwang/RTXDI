@@ -41,37 +41,6 @@ void RayGen()
         RTXDI_DIReservoir centerSample = RTXDI_LoadDIReservoir(g_Const.restirDI.reservoirBufferParams,
             GlobalIndex, g_Const.restirDI.bufferIndices.spatialResamplingInputBufferIndex);
 
-        RAB_LightSample lightSample = (RAB_LightSample)0;
-            
-        // if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_DI_ENABLE)
-        // {
-        //     float3 posJitter = float3(0.f, 0.f, 0.f);
-
-        //     float3 tangent, bitangent;
-        //     branchlessONB(surface.normal, tangent, bitangent);
-        //     // RAB_RandomSamplerState rng = RAB_InitRandomSampler(GlobalIndex, 5);
-        //     float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
-        //     posJitter = tangent * t.x + bitangent * t.y;
-        //     posJitter *= g_Const.sceneGridScale;
-        //     CacheEntry gridId;
-        //     if (FindEntry(surface.worldPos + posJitter, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
-        //     {
-        //         RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[gridId]);
-
-        //         if (RTXDI_IsValidDIReservoir(wsReservoir))
-        //         {
-        //             if(RTXDI_CombineDIReservoirs(centerSample, wsReservoir, 0.5f, wsReservoir.targetPdf))
-        //             {
-        //                 lightSample = RAB_SamplePolymorphicLight(
-        //                     RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(wsReservoir), false), 
-        //                     surface, 
-        //                     RTXDI_GetDIReservoirSampleUV(wsReservoir));
-        //             }
-        //             RTXDI_FinalizeResampling(centerSample, 1.0, centerSample.M);
-        //         }
-        //     }
-        // }
-
         RTXDI_DISpatialResamplingParameters sparams;
         sparams.sourceBufferIndex = g_Const.restirDI.bufferIndices.spatialResamplingInputBufferIndex;
         sparams.numSamples = g_Const.restirDI.spatialResamplingParams.numSpatialSamples;
@@ -84,6 +53,7 @@ void RayGen()
         sparams.enableMaterialSimilarityTest = true;
         sparams.discountNaiveSamples = g_Const.restirDI.spatialResamplingParams.discountNaiveSamples;
 
+        RAB_LightSample lightSample = (RAB_LightSample)0;
         spatialResult = RTXDI_DISpatialResampling(pixelPosition, surface, centerSample, 
              rng, params, g_Const.restirDI.reservoirBufferParams, sparams, lightSample);
     }

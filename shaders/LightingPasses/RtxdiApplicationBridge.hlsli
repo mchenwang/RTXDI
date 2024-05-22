@@ -98,10 +98,11 @@ RWByteAddressBuffer u_EnvGuidingStats : register(u18);
 RWStructuredBuffer<EnvRadianceData> u_EnvRandianceBuffer : register(u19);
 RWStructuredBuffer<EnvGuidingGridStats> u_EnvGuidingGridStatsBuffer : register(u20);
 
-StructuredBuffer<RTXDI_PackedDIReservoir> t_WorldSpaceLightReservoirs : register(t27);
+StructuredBuffer<WorldSpaceDIReservoir> t_WorldSpaceLightReservoirs : register(t27);
 RWByteAddressBuffer u_WorldSpaceReservoirStats : register(u21);
 RWStructuredBuffer<WSRLightSample> u_WorldSpaceLightSamplesBuffer : register(u22);
 RWStructuredBuffer<WSRGridStats> u_WorldSpaceGridStatsBuffer : register(u23);
+RWStructuredBuffer<WSRSurfaceData> u_WorldSpaceReservoirSurfaceCandidatesBuffer : register(u24);// TODO:screen space
 
 #include "HashGridHelper.hlsli"
 

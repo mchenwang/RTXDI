@@ -109,7 +109,7 @@ void RayGen()
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {
             bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-            SampleWorldSpaceReservoir(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, useJitter);
+            SampleWorldSpaceReservoir(reservoir, lightSample, rng, secondarySurface, primarySurface.worldPos, g_Const.sceneGridScale, useJitter);
         }
 
         if (g_Const.brdfPT.enableSecondaryResampling)
@@ -185,7 +185,6 @@ void RayGen()
             //     wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface) * 10.f;
             //     wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
             //     wsrLightSample.random = RAB_GetNextRandom(rng);
-
             //     uint sampleCnt;
             //     InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
             //     // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)

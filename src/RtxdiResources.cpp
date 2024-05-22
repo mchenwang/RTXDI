@@ -264,13 +264,23 @@ RtxdiResources::RtxdiResources(
     {
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(RTXDI_PackedDIReservoir) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
-            desc.structStride = sizeof(RTXDI_PackedDIReservoir);
+            desc.byteSize = sizeof(WorldSpaceDIReservoir) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
+            desc.structStride = sizeof(WorldSpaceDIReservoir);
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             desc.keepInitialState = true;
             desc.debugName = "worldSpaceLightReservoirsBuffer";
             desc.canHaveUAVs = true;
             worldSpaceLightReservoirsBuffer = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(WSRSurfaceData) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
+            desc.structStride = sizeof(WSRSurfaceData);
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.keepInitialState = true;
+            desc.debugName = "worldSpaceReservoirSurfaceCandidatesBuffer";
+            desc.canHaveUAVs = true;
+            worldSpaceReservoirSurfaceCandidatesBuffer = device->createBuffer(desc);
         }
         {
             nvrhi::BufferDesc desc;
@@ -284,7 +294,7 @@ RtxdiResources::RtxdiResources(
         }
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(WSRLightSample) * viewportWidth * viewportHeight * 2;
+            desc.byteSize = sizeof(WSRLightSample) * WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM;
             desc.structStride = sizeof(WSRLightSample);
             desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
             desc.keepInitialState = true;

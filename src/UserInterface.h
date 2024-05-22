@@ -147,7 +147,7 @@ struct UIData
     uint32_t worldSpaceReservoirFlag = 0;
     bool worldSpaceReservoirResetFlag = false;
 
-    ibool enableAnimations = true;
+    ibool enableAnimations = false;
     float animationSpeed = 1.f;
     int environmentMapDirty = 0; // 1 -> needs to be rendered; 2 -> passes/textures need to be created
     int environmentMapIndex = -1;

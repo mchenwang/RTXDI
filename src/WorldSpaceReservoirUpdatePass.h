@@ -5,7 +5,9 @@
 
 namespace donut::engine
 {
+    class Scene;
     class ShaderFactory;
+    class CommonRenderPasses;
 }
 
 class RtxdiResources;
@@ -14,6 +16,8 @@ class WorldSpaceReservoirUpdatePass
 {
 private:
     nvrhi::DeviceHandle m_Device;
+
+    nvrhi::IBindingLayout* m_BindlessLayout;
 
     struct
     {
@@ -33,13 +37,18 @@ private:
     nvrhi::IBuffer* m_WorldSpaceGridStatsBuffer;
     
     std::shared_ptr<donut::engine::ShaderFactory> m_ShaderFactory;
+    std::shared_ptr<donut::engine::CommonRenderPasses> m_CommonPasses;
+    std::shared_ptr<donut::engine::Scene> m_Scene;
 
     nvrhi::BufferHandle m_IndirectParamsBuffer;
 
 public:
     WorldSpaceReservoirUpdatePass(
         nvrhi::IDevice* device,
-        std::shared_ptr<donut::engine::ShaderFactory> shaderFactory);
+        std::shared_ptr<donut::engine::ShaderFactory> shaderFactory,
+        std::shared_ptr<donut::engine::CommonRenderPasses> commonPasses,
+        std::shared_ptr<donut::engine::Scene> scene,
+        nvrhi::IBindingLayout* bindlessLayout);
 
     void CreatePipeline();
     void CreateBindingSet(RtxdiResources& resources);

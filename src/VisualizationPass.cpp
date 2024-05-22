@@ -135,7 +135,7 @@ void VisualizationPass::Render(
         EnvVisibilityVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
-        constants.sceneGridScale = 1.f;
+        constants.sceneGridScale = 0.5f;
         constants.flag = s_flag++;
 
         if (visualizationMode == VIS_MODE_ENV_VIS_MAP)

@@ -60,6 +60,7 @@ public:
     nvrhi::BufferHandle worldSpaceLightSamplesBuffer;
     nvrhi::BufferHandle worldSpaceReorderedLightSamplesBuffer;
     nvrhi::BufferHandle worldSpaceGridStatsBuffer;
+    nvrhi::BufferHandle worldSpaceReservoirSurfaceCandidatesBuffer;
 
     RtxdiResources(
         nvrhi::IDevice* device, 

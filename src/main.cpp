@@ -81,6 +81,13 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
+static int g_SceneId = 1;
+static const char* g_ScenePath[3] = {
+    "/media/test.json",
+    "/media/bistro-rtxdi.scene.json",
+    "/media/Arcade/Arcade.gltf"
+};
+
 class SceneRenderer : public app::ApplicationBase
 {
 private:
@@ -221,9 +228,8 @@ public:
             m_BindlessLayout = GetDevice()->createBindlessLayout(bindlessLayoutDesc);
         }
 
-        std::filesystem::path scenePath = "/media/test.json";
+        std::filesystem::path scenePath = g_ScenePath[g_SceneId];
         // std::filesystem::path scenePath = "/media/bistro-rtxdi.scene.json";
-        // std::filesystem::path scenePath = "/media/Arcade/Arcade.gltf";
 
         m_DescriptorTableManager = std::make_shared<engine::DescriptorTableManager>(GetDevice(), m_BindlessLayout);
 
@@ -260,7 +266,7 @@ public:
         // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         // m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         m_EnvGuidingUpdatePass = std::make_unique<EnvGuidingUpdatePass>(GetDevice(), m_ShaderFactory);
-        m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory);
+        m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
 
 #ifdef WITH_DLSS
         {
@@ -329,10 +335,23 @@ public:
 
         m_Scene->FinishedLoading(GetFrameIndex());
 
-        // m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
-        float3 pos = float3(-1.837f, 1.573f, -5.432f);
-        float3 dir = float3(0.9982f, 0.05996f, 0.001624f);
-        m_Camera.LookAt(pos, pos + dir);
+        switch (g_SceneId)
+        {
+        case 0: {
+            float3 pos = float3(-1.837f, 1.573f, -5.432f);
+            float3 dir = float3(0.9982f, 0.05996f, 0.001624f);
+            m_Camera.LookAt(pos, pos + dir);
+        } break;
+        case 1: {
+            float3 pos = float3(-23.72f, 2.689f, 6.151f);
+            float3 dir = float3(0.7327f, -0.1741f, 0.6579f);
+            m_Camera.LookAt(pos, pos + dir);
+        } break;
+        default:
+            m_Camera.LookAt(float3(-7.688f, 2.0f, 5.594f), float3(-7.3341f, 2.0f, 6.5366f));
+            break;
+        }
+
         m_Camera.SetMoveSpeed(3.f);
 
         const auto& sceneGraph = m_Scene->GetSceneGraph();

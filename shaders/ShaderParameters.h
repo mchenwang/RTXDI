@@ -382,12 +382,13 @@ struct EnvVisibilityVisualizationConstants
     uint3 pad;
 };
 
-#define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   10000000
-#define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        10000
+#define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        100000
 // the number of reservoirs in a grid (not bigger than 32 or 64 is better)
-#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  8
-#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          256
+#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  16
+#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          128
 #define WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM          (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR)
+
+#define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   1000000
 
 #define WORLD_SPACE_RESERVOIR_UPDATE_ENABLE     (1)
 #define WORLD_SPACE_RESERVOIR_TEMPLORAL_ENABLE  (1 << 1)
@@ -402,6 +403,22 @@ struct EnvVisibilityVisualizationConstants
 
 #define WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER (1 << 7)
 
+struct WSRSurfaceData
+{
+    float3 worldPos;
+    uint normal;
+
+    uint diffuseAlbedo;         // R11G11B10_UFLOAT
+    uint specularAndRoughness;  // R8G8B8A8_Gamma_UFLOAT
+    uint viewDir;
+};
+
+struct WorldSpaceDIReservoir
+{
+    WSRSurfaceData packedSurface;
+    RTXDI_PackedDIReservoir packedReservoir;
+};
+
 struct WSRLightSample
 {
     uint gridId;
@@ -411,6 +428,8 @@ struct WSRLightSample
     float targetPdf;
     float invSourcePdf;
     uint pad;
+
+    WSRSurfaceData surface;
 };
 
 struct WSRStats
@@ -424,6 +443,7 @@ struct WSRGridStats
 {
     uint sampleCnt;
     uint offset;
+    int candidateSurfaceCnt;
 };
 
 #define VMF_MAX_DATA_NUM 20

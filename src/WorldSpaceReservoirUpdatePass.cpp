@@ -2,6 +2,7 @@
 #include "RtxdiResources.h"
 #include "SampleScene.h"
 
+#include <donut/engine/Scene.h>
 #include <donut/engine/ShaderFactory.h>
 #include <donut/engine/CommonRenderPasses.h>
 #include <donut/core/log.h>
@@ -15,12 +16,17 @@ using namespace donut::math;
 
 using namespace donut::engine;
 
-
 WorldSpaceReservoirUpdatePass::WorldSpaceReservoirUpdatePass(
     nvrhi::IDevice* device, 
-    std::shared_ptr<ShaderFactory> shaderFactory)
+    std::shared_ptr<ShaderFactory> shaderFactory,
+    std::shared_ptr<donut::engine::CommonRenderPasses> commonPasses,
+    std::shared_ptr<donut::engine::Scene> scene,
+    nvrhi::IBindingLayout* bindlessLayout)
     : m_Device(device)
     , m_ShaderFactory(std::move(shaderFactory))
+    , m_CommonPasses(std::move(commonPasses))
+    , m_Scene(scene)
+    , m_BindlessLayout(bindlessLayout)
 {
     {
         nvrhi::BindingLayoutDesc bindingLayoutDesc;
@@ -61,6 +67,9 @@ WorldSpaceReservoirUpdatePass::WorldSpaceReservoirUpdatePass(
             nvrhi::BindingLayoutItem::StructuredBuffer_UAV(0),
             nvrhi::BindingLayoutItem::StructuredBuffer_UAV(1),
             nvrhi::BindingLayoutItem::TypedBuffer_SRV(2),
+            nvrhi::BindingLayoutItem::StructuredBuffer_SRV(3),
+            nvrhi::BindingLayoutItem::StructuredBuffer_SRV(4),
+            nvrhi::BindingLayoutItem::Sampler(0),
         };
         m_UpdateReservoirPass.bindingLayout = m_Device->createBindingLayout(bindingLayoutDesc);
     }
@@ -102,12 +111,15 @@ void WorldSpaceReservoirUpdatePass::CreatePipeline()
 {
     donut::log::debug("Initializing WorldSpaceReservoirUpdatePass...");
 
-    auto Create = [&](const char* path, nvrhi::ShaderHandle &shader, nvrhi::ComputePipelineHandle &pipeline, nvrhi::BindingLayoutHandle &bindingLayout)
+    auto Create = [&](const char* path, nvrhi::ShaderHandle &shader, nvrhi::ComputePipelineHandle &pipeline, nvrhi::BindingLayoutHandle &bindingLayout, bool useBindless = false)
     {
         shader = m_ShaderFactory->CreateShader(path, "main", nullptr, nvrhi::ShaderType::Compute);
 
         nvrhi::ComputePipelineDesc pipelineDesc;
-        pipelineDesc.bindingLayouts = { bindingLayout };
+        if (useBindless)
+            pipelineDesc.bindingLayouts = { bindingLayout, m_BindlessLayout };
+        else
+            pipelineDesc.bindingLayouts = { bindingLayout };
         pipelineDesc.CS = shader;
         pipeline = m_Device->createComputePipeline(pipelineDesc);
     };
@@ -115,7 +127,7 @@ void WorldSpaceReservoirUpdatePass::CreatePipeline()
     Create("app/LightingPasses/WSR/SetIndirectParams.hlsl", m_SetIndirectParamsPass.shader, m_SetIndirectParamsPass.pipeline, m_SetIndirectParamsPass.bindingLayout);
     Create("app/LightingPasses/WSR/SetGridStats.hlsl", m_SetGridStatsPass.shader, m_SetGridStatsPass.pipeline, m_SetGridStatsPass.bindingLayout);
     Create("app/LightingPasses/WSR/ReorderData.hlsl", m_ReorderDataPass.shader, m_ReorderDataPass.pipeline, m_ReorderDataPass.bindingLayout);
-    Create("app/LightingPasses/WSR/UpdateReservoir.hlsl", m_UpdateReservoirPass.shader, m_UpdateReservoirPass.pipeline, m_UpdateReservoirPass.bindingLayout);
+    Create("app/LightingPasses/WSR/UpdateReservoir.hlsl", m_UpdateReservoirPass.shader, m_UpdateReservoirPass.pipeline, m_UpdateReservoirPass.bindingLayout, true);
     Create("app/LightingPasses/WSR/ResetReservoir.hlsl", m_ResetPass.shader, m_ResetPass.pipeline, m_ResetPass.bindingLayout);
 }
 
@@ -162,6 +174,10 @@ void WorldSpaceReservoirUpdatePass::CreateBindingSet(RtxdiResources& resources)
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, resources.worldSpaceLightReservoirsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, resources.worldSpaceGridStatsBuffer),
             nvrhi::BindingSetItem::TypedBuffer_SRV(2, m_UpdatableGridQueue),
+
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, resources.worldSpaceReservoirSurfaceCandidatesBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, resources.LightDataBuffer),
+            nvrhi::BindingSetItem::Sampler(0, m_CommonPasses->m_LinearWrapSampler),
         };
 
         m_UpdateReservoirPass.bindingSet = m_Device->createBindingSet(bindingSetDesc, m_UpdateReservoirPass.bindingLayout);
@@ -204,7 +220,7 @@ void WorldSpaceReservoirUpdatePass::Process(nvrhi::ICommandList* commandList)
     }
     {
         nvrhi::ComputeState state;
-        state.bindings = { m_UpdateReservoirPass.bindingSet };
+        state.bindings = { m_UpdateReservoirPass.bindingSet, m_Scene->GetDescriptorTable() };
         state.indirectParams = m_IndirectParamsBuffer.Get();
         state.pipeline = m_UpdateReservoirPass.pipeline;
         commandList->setComputeState(state);

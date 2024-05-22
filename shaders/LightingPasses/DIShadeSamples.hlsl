@@ -59,42 +59,6 @@ void RayGen()
         RAB_LightSample lightSample = RAB_SamplePolymorphicLight(lightInfo,
             surface, RTXDI_GetDIReservoirSampleUV(reservoir));
 
-        
-        // if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_DI_ENABLE)
-        // {
-        //     float3 posJitter = float3(0.f, 0.f, 0.f);
-
-        //     float3 tangent, bitangent;
-        //     branchlessONB(surface.normal, tangent, bitangent);
-        //     RAB_RandomSamplerState rng = RAB_InitRandomSampler(GlobalIndex, 5);
-        //     float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
-        //     posJitter = tangent * t.x + bitangent * t.y;
-        //     posJitter *= g_Const.sceneGridScale;
-        //     CacheEntry gridId;
-        //     if (FindEntry(surface.worldPos + posJitter, surface.normal, surface.viewDepth, g_Const.sceneGridScale, gridId))
-        //     {
-        //         RTXDI_DIReservoir wsReservoir = RTXDI_UnpackDIReservoir(t_WorldSpaceLightReservoirs[gridId]);
-
-        //         if (RTXDI_IsValidDIReservoir(wsReservoir))
-        //         {
-        //             RAB_LightSample wsLightSample = RAB_SamplePolymorphicLight(
-        //                 RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(wsReservoir), false), 
-        //                 surface, 
-        //                 RTXDI_GetDIReservoirSampleUV(wsReservoir));
-
-        //             if (RTXDI_StreamSample(reservoir, 
-        //                 RTXDI_GetDIReservoirLightIndex(wsReservoir),
-        //                 RTXDI_GetDIReservoirSampleUV(wsReservoir),
-        //                 0.f,
-        //                 RAB_GetLightSampleTargetPdfForSurface(wsLightSample, surface),
-        //                 RTXDI_GetDIReservoirInvPdf(wsReservoir)))
-        //             {
-        //                 lightSample = wsLightSample;
-        //             }
-        //         }
-        //     }
-        // }
-
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
         {
             StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);

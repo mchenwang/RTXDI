@@ -155,6 +155,7 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::RawBuffer_UAV(21),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(22),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(23),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(24),
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
@@ -237,6 +238,7 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::RawBuffer_UAV(21, resources.worldSpaceReservoirsStats),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(22, resources.worldSpaceLightSamplesBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(23, resources.worldSpaceGridStatsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(24, resources.worldSpaceReservoirSurfaceCandidatesBuffer),
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);
@@ -468,7 +470,7 @@ void LightingPasses::FillResamplingConstants(
 {
     const RTXDI_LightBufferParameters& lightBufferParameters = isContext.getLightBufferParameters();
 
-    constants.sceneGridScale = 1.f;
+    constants.sceneGridScale = 0.5f;
 
     constants.enablePreviousTLAS = lightingSettings.enablePreviousTLAS;
     constants.denoiserMode = lightingSettings.denoiserMode;

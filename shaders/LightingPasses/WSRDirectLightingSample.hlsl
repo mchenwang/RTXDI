@@ -33,6 +33,7 @@ void RayGen()
 {
 #if !USE_RAY_QUERY
     uint2 GlobalIndex = DispatchRaysIndex().xy;
+
 #endif
     uint2 pixelPosition = RTXDI_ReservoirPosToPixelPos(GlobalIndex, g_Const.runtimeParams.activeCheckerboardField);
 
@@ -72,8 +73,12 @@ void RayGen()
     if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
     {
         float3 visibility = GetFinalVisibility(SceneBVH, surface, lightSample.position);
+        uint gridId = 0;
         if (any(visibility > 0))
-            StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);
+        {
+            gridId = StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);
+        }
+        u_DebugColor1[pixelPosition] = float4(gridId * 1.f / (128*128*128), 0., 0., 1.);
     }
 
     if (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_DI_COMBINE))
@@ -82,17 +87,22 @@ void RayGen()
     if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_DI_ENABLE)
     {
         bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-        SampleWorldSpaceReservoir(reservoir, lightSample, rng, surface, g_Const.sceneGridScale, useJitter);
+        SampleWorldSpaceReservoir(reservoir, lightSample, rng, surface, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, useJitter);
     }
 
     float3 diffuse = 0;
     float3 specular = 0;
     float lightDistance = 0;
-    
 
     if (RTXDI_IsValidDIReservoir(reservoir))
         ShadeSurfaceWithLightSample(reservoir, surface, lightSample, /* previousFrameTLAS = */ false,
             /* enableVisibilityReuse = */ false, diffuse, specular, lightDistance);
+
+    // if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
+    // {
+    //    uint gridId = StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);
+    //    u_DebugColor1[pixelPosition] = float4(gridId * 1.f / (128*128*128), 0., 0., 1.);
+    // }
 
     specular = DemodulateSpecular(surface.specularF0, specular);
 
