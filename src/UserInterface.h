@@ -44,7 +44,6 @@ enum class DirectLightingMode : uint32_t
     None,
     Brdf,
     ReStir,
-    WSR
 };
 
 enum class IndirectLightingMode : uint32_t
@@ -121,11 +120,11 @@ struct UIData
     ibool enablePixelJitter = true;
     ibool rasterizeGBuffer = true;
     ibool useRayQuery = true;
-    ibool enableBloom = true;
+    ibool enableBloom = false;
     float exposureBias = -1.0f;
     float verticalFov = 60.f;
 
-    QualityPreset preset = QualityPreset::Medium;
+    QualityPreset preset = QualityPreset::Unbiased;
 
 #ifdef WITH_DLSS
     // AntiAliasingMode aaMode = AntiAliasingMode::DLSS;
@@ -139,7 +138,7 @@ struct UIData
 
     // DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
     // IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
-    DirectLightingMode directLightingMode = DirectLightingMode::WSR;
+    DirectLightingMode directLightingMode = DirectLightingMode::ReStir;
     IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
     uint32_t guidingFlag = 0;
     bool guidingResetFlag = false;

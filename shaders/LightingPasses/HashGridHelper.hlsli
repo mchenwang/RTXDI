@@ -181,9 +181,9 @@ HashKey ComputeSpatialHash(float3 samplePosition, float3 sampleNormal, float vie
 
 #if HASH_GRID_USE_NORMALS
     uint normalBits =
-        (sampleNormal.x >= 0 ? 1 : 0) +
-        (sampleNormal.y >= 0 ? 2 : 0) +
-        (sampleNormal.z >= 0 ? 4 : 0);
+        (sampleNormal.x >= -0.001 ? 1 : 0) +
+        (sampleNormal.y >= -0.001 ? 2 : 0) +
+        (sampleNormal.z >= -0.001 ? 4 : 0);
 
     hashKey |= ((HashKey)normalBits << (HASH_GRID_POSITION_BIT_NUM * 3 + HASH_GRID_LEVEL_BIT_NUM));
 #endif // HASH_GRID_USE_NORMALS

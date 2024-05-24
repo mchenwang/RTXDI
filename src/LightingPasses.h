@@ -70,7 +70,6 @@ private:
     ComputePass m_PresampleEnvironmentMapPass;
     ComputePass m_PresampleReGIR;
     RayTracingPass m_GenerateInitialSamplesPass;
-    RayTracingPass m_WSRDirectLightingSamplePass;
     RayTracingPass m_TemporalResamplingPass;
     RayTracingPass m_SpatialResamplingPass;
     RayTracingPass m_ShadeSamplesPass;
@@ -91,6 +90,23 @@ private:
     nvrhi::BufferHandle m_SecondarySurfaceBuffer;
     nvrhi::BufferHandle m_GIReservoirBuffer;
 
+    struct{
+        ComputePass pass;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        nvrhi::BindingSetHandle bindingSet;
+    } m_WSRSetIndirectParamsPass,
+      m_WSRSetGridStatsPass,
+      m_WSRReorderDataPass,
+      m_WSRResetPass;
+    RayTracingPass m_WSRUpdatePass;
+    RayTracingPass m_WSRDIShadingPass;
+
+    nvrhi::BufferHandle m_WorldSpaceLightReservoirsBuffer;
+    nvrhi::BufferHandle m_WSRUpdatableGridQueue;
+    nvrhi::BufferHandle m_WSRIndirectParamsBuffer;
+    nvrhi::BufferHandle m_WorldSpaceReservoirStatsBuffer;
+    nvrhi::BufferHandle m_WorldSpaceGridStatsBuffer;
+
     dm::uint2 m_EnvironmentPdfTextureSize;
     dm::uint2 m_LocalLightPdfTextureSize;
 
@@ -102,6 +118,8 @@ private:
     std::shared_ptr<donut::engine::CommonRenderPasses> m_CommonPasses;
     std::shared_ptr<donut::engine::Scene> m_Scene;
     std::shared_ptr<Profiler> m_Profiler;
+
+    const RtxdiResources* m_RtxdiResources;
 
     void CreateComputePass(ComputePass& pass, const char* shaderName, const std::vector<donut::engine::ShaderMacro>& macros);
     void ExecuteComputePass(nvrhi::ICommandList* commandList, ComputePass& pass, const char* passName, dm::int2 dispatchSize, ProfilerSection::Enum profilerSection);
@@ -157,19 +175,13 @@ public:
         bool enableAccumulation,
         uint32_t wsrFlag = 0);
 
-    void WSRDirectLightingSample(
-        nvrhi::ICommandList* commandList,
-        rtxdi::ImportanceSamplingContext& context,
-        const donut::engine::IView& view,
-        const donut::engine::IView& previousView,
-        const RenderSettings& localSettings,
-        uint32_t wsrFlag = 0);
-
     void RenderDirectLighting(
         nvrhi::ICommandList* commandList,
         rtxdi::ReSTIRDIContext& context,
         const donut::engine::IView& view,
-        const RenderSettings& localSettings);
+        const RenderSettings& localSettings,
+        uint32_t wsrFlag,
+        bool wsrReset);
 
     void RenderBrdfRays(
         nvrhi::ICommandList* commandList,
@@ -206,5 +218,6 @@ private:
     void createPresamplingPipelines();
     void createReGIRPipeline(const rtxdi::ReGIRStaticParameters& regirStaticParams, const std::vector<donut::engine::ShaderMacro>& regirMacros);
     void createReSTIRDIPipelines(const std::vector<donut::engine::ShaderMacro>& regirMacros, bool useRayQuery);
+    void createWSRPipelines(const std::vector<donut::engine::ShaderMacro>& regirMacros, bool useRayQuery);
     void createReSTIRGIPipelines(bool useRayQuery);
 };

@@ -23,7 +23,6 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
-#include "WSRSampleHelper.hlsli"
 
 #if USE_RAY_QUERY
 [numthreads(RTXDI_SCREEN_SPACE_GROUP_SIZE, RTXDI_SCREEN_SPACE_GROUP_SIZE, 1)]
@@ -52,18 +51,13 @@ void RayGen()
     float lightDistance = 0;
     float2 currLuminance = 0;
 
-    if (RTXDI_IsValidDIReservoir(reservoir))
-    {
-        RAB_LightInfo lightInfo = RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(reservoir), false);
 
-        RAB_LightSample lightSample = RAB_SamplePolymorphicLight(lightInfo,
+    RAB_LightInfo lightInfo = RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(reservoir), false);
+    RAB_LightSample lightSample = RAB_SamplePolymorphicLight(lightInfo,
             surface, RTXDI_GetDIReservoirSampleUV(reservoir));
 
-        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
-        {
-            StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale);
-        }
-
+    if (RTXDI_IsValidDIReservoir(reservoir))
+    {
         bool needToStore = ShadeSurfaceWithLightSample(reservoir, surface, lightSample,
             /* previousFrameTLAS = */ false, /* enableVisibilityReuse = */ true, diffuse, specular, lightDistance);
     

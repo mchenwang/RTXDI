@@ -93,16 +93,15 @@ RWTexture2D<float4> u_DebugColor2 : register(u15);
 RWStructuredBuffer<uint> u_GridHashMap : register(u16);
 RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u17);
 
-StructuredBuffer<EnvGuidingData> t_EnvGuidingMap : register(t26);
-RWByteAddressBuffer u_EnvGuidingStats : register(u18);
-RWStructuredBuffer<EnvRadianceData> u_EnvRandianceBuffer : register(u19);
-RWStructuredBuffer<EnvGuidingGridStats> u_EnvGuidingGridStatsBuffer : register(u20);
-
-StructuredBuffer<WorldSpaceDIReservoir> t_WorldSpaceLightReservoirs : register(t27);
-RWByteAddressBuffer u_WorldSpaceReservoirStats : register(u21);
-RWStructuredBuffer<WSRLightSample> u_WorldSpaceLightSamplesBuffer : register(u22);
-RWStructuredBuffer<WSRGridStats> u_WorldSpaceGridStatsBuffer : register(u23);
-RWStructuredBuffer<WSRSurfaceData> u_WorldSpaceReservoirSurfaceCandidatesBuffer : register(u24);// TODO:screen space
+// world space reserovir
+RWStructuredBuffer<WorldSpaceDIReservoir> u_WorldSpaceLightReservoirs : register(u18);
+RWStructuredBuffer<WSRGridStats> u_WorldSpaceGridStatsBuffer : register(u19);
+RWByteAddressBuffer u_WorldSpaceReservoirStats : register(u20);
+RWStructuredBuffer<WSRLightSample> u_WorldSpaceLightSamplesBuffer : register(u21);
+// world space reserovir update
+Buffer<uint> u_WorldSpaceReservoirUpdateGridQueue : register(t26);
+StructuredBuffer<WSRLightSample> t_WorldSpaceReorderedLightSamplesBuffer : register(t27);
+ByteAddressBuffer t_WorldSpacePassIndirectParamsBuffer : register(t28);
 
 #include "HashGridHelper.hlsli"
 
@@ -289,7 +288,7 @@ bool GetConservativeVisibility(RaytracingAccelerationStructure accelStruct, RAB_
 {
     RayDesc ray = setupVisibilityRay(surface, samplePosition);
 
-#if USE_RAY_QUERY
+// #if USE_RAY_QUERY
     RayQuery<RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> rayQuery;
 
     rayQuery.TraceRayInline(accelStruct, RAY_FLAG_NONE, INSTANCE_MASK_OPAQUE, ray);
@@ -297,15 +296,15 @@ bool GetConservativeVisibility(RaytracingAccelerationStructure accelStruct, RAB_
     rayQuery.Proceed();
 
     bool visible = (rayQuery.CommittedStatus() == COMMITTED_NOTHING);
-#else
-    RayPayload payload = (RayPayload)0;
-    payload.instanceID = ~0u;
-    payload.throughput = 1.0;
+// #else
+//     RayPayload payload = (RayPayload)0;
+//     payload.instanceID = ~0u;
+//     payload.throughput = 1.0;
 
-    TraceRay(accelStruct, RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, INSTANCE_MASK_OPAQUE, 0, 0, 0, ray, payload);
+//     TraceRay(accelStruct, RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, INSTANCE_MASK_OPAQUE, 0, 0, 0, ray, payload);
 
-    bool visible = (payload.instanceID == ~0u);
-#endif
+//     bool visible = (payload.instanceID == ~0u);
+// #endif
 
     REPORT_RAY(!visible);
 
@@ -355,7 +354,7 @@ float3 GetFinalVisibility(RaytracingAccelerationStructure accelStruct, RAB_Surfa
     payload.instanceID = ~0u;
     payload.throughput = 1.0;
 
-#if USE_RAY_QUERY
+// #if USE_RAY_QUERY
     RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> rayQuery;
 
     rayQuery.TraceRayInline(accelStruct, rayFlags, instanceMask, ray);
@@ -385,9 +384,9 @@ float3 GetFinalVisibility(RaytracingAccelerationStructure accelStruct, RAB_Surfa
         payload.committedRayT = rayQuery.CommittedRayT();
         payload.frontFace = rayQuery.CommittedTriangleFrontFace();
     }
-#else
-    TraceRay(accelStruct, rayFlags, instanceMask, 0, 0, 0, ray, payload);
-#endif
+// #else
+//     TraceRay(accelStruct, rayFlags, instanceMask, 0, 0, 0, ray, payload);
+// #endif
 
     REPORT_RAY(payload.instanceID != ~0u);
 

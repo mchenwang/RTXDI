@@ -384,22 +384,20 @@ struct EnvVisibilityVisualizationConstants
 
 #define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        100000
 // the number of reservoirs in a grid (not bigger than 32 or 64 is better)
-#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  16
-#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          128
+#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  32
+#define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          16
 #define WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM          (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR)
 
 #define WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM                   1000000
 
 #define WORLD_SPACE_RESERVOIR_UPDATE_ENABLE     (1)
-#define WORLD_SPACE_RESERVOIR_TEMPLORAL_ENABLE  (1 << 1)
-#define WORLD_SPACE_RESERVOIR_SPATIAL_ENABLE    (1 << 2)
+#define WORLD_SPACE_RESERVOIR_SAMPLE_ENABLE     (1 << 1)
+#define WORLD_SPACE_RESERVOIR_REUSE             (1 << 2)
 #define WORLD_SPACE_RESERVOIR_DI_ENABLE         (1 << 3)
 #define WORLD_SPACE_RESERVOIR_GI_ENABLE         (1 << 4)
 #define WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY    (1 << 5)
 #define WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY  (1 << 6)
-#define WORLD_SPACE_RESERVOIR_UPDATE_BRDF       (1 << 8)
 #define WORLD_SPACE_RESERVOIR_GI_COMBINE        (1 << 9)
-#define WORLD_SPACE_RESERVOIR_DI_COMBINE        (1 << 10)
 
 #define WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER (1 << 7)
 
@@ -411,6 +409,7 @@ struct WSRSurfaceData
     uint diffuseAlbedo;         // R11G11B10_UFLOAT
     uint specularAndRoughness;  // R8G8B8A8_Gamma_UFLOAT
     uint viewDir;
+    uint geoNormal;
 };
 
 struct WorldSpaceDIReservoir

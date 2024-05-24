@@ -146,21 +146,81 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(16),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(17),
 
-        nvrhi::BindingLayoutItem::StructuredBuffer_SRV(26),
-        nvrhi::BindingLayoutItem::RawBuffer_UAV(18),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(18),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(19),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20),
+        nvrhi::BindingLayoutItem::RawBuffer_UAV(20),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(21),
 
+        nvrhi::BindingLayoutItem::TypedBuffer_SRV(26),
         nvrhi::BindingLayoutItem::StructuredBuffer_SRV(27),
-        nvrhi::BindingLayoutItem::RawBuffer_UAV(21),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(22),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(23),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(24),
+        nvrhi::BindingLayoutItem::RawBuffer_SRV(28),
     };
 
     m_BindingLayout = m_Device->createBindingLayout(globalBindingLayoutDesc);
 
     m_ConstantBuffer = m_Device->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(ResamplingConstants), "ResamplingConstants", 16));
+
+    {
+        nvrhi::BufferDesc desc;
+        desc.debugName = "WorldSpaceReservoirUpdatePass::m_WSRIndirectParamsBuffer";
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.canHaveRawViews = true;
+        desc.canHaveUAVs = true;
+        desc.byteSize = sizeof(uint32_t) * 4 * 2;
+        m_WSRIndirectParamsBuffer = m_Device->createBuffer(desc);
+    }
+
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(uint32_t) * WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM;
+        desc.structStride = sizeof(uint32_t);
+        desc.format = nvrhi::Format::R32_UINT;
+        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        desc.keepInitialState = true;
+        desc.debugName = "m_WSRUpdatableGridQueue";
+        desc.canHaveUAVs = true;
+        m_WSRUpdatableGridQueue = m_Device->createBuffer(desc);
+    }
+
+    {
+        nvrhi::BindingLayoutDesc bindingLayoutDesc;
+        bindingLayoutDesc.visibility = nvrhi::ShaderType::Compute;
+        bindingLayoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::RawBuffer_UAV(0),
+            nvrhi::BindingLayoutItem::RawBuffer_UAV(1),
+        };
+        m_WSRSetIndirectParamsPass.bindingLayout = m_Device->createBindingLayout(bindingLayoutDesc);
+    }
+    {
+        nvrhi::BindingLayoutDesc bindingLayoutDesc;
+        bindingLayoutDesc.visibility = nvrhi::ShaderType::Compute;
+        bindingLayoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::StructuredBuffer_UAV(0),
+            nvrhi::BindingLayoutItem::RawBuffer_UAV(1),
+            nvrhi::BindingLayoutItem::TypedBuffer_UAV(2),
+        };
+        m_WSRSetGridStatsPass.bindingLayout = m_Device->createBindingLayout(bindingLayoutDesc);
+    }
+    {
+        nvrhi::BindingLayoutDesc bindingLayoutDesc;
+        bindingLayoutDesc.visibility = nvrhi::ShaderType::Compute;
+        bindingLayoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::RawBuffer_SRV(0),
+            nvrhi::BindingLayoutItem::StructuredBuffer_SRV(1),
+            nvrhi::BindingLayoutItem::StructuredBuffer_UAV(0),
+            nvrhi::BindingLayoutItem::StructuredBuffer_UAV(1),
+        };
+        m_WSRReorderDataPass.bindingLayout = m_Device->createBindingLayout(bindingLayoutDesc);
+    }
+    {
+        nvrhi::BindingLayoutDesc bindingLayoutDesc;
+        bindingLayoutDesc.visibility = nvrhi::ShaderType::Compute;
+        bindingLayoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::StructuredBuffer_UAV(0),
+        };
+        m_WSRResetPass.bindingLayout = m_Device->createBindingLayout(bindingLayoutDesc);
+    }
 }
 
 void LightingPasses::CreateBindingSet(
@@ -171,6 +231,8 @@ void LightingPasses::CreateBindingSet(
 {
     assert(&renderTargets);
     assert(&resources);
+
+    m_RtxdiResources = &resources;
 
     for (int currentFrame = 0; currentFrame <= 1; currentFrame++)
     {
@@ -229,16 +291,14 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::StructuredBuffer_UAV(16, resources.gridHashMapBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(17, resources.gridHashMapLockBuffer),
 
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(26, resources.envGuidingMap),
-            nvrhi::BindingSetItem::RawBuffer_UAV(18, resources.envGuidingStats),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.envRadianceBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.envGuidingGridStatsBuffer),
-            
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(27, resources.worldSpaceLightReservoirsBuffer),
-            nvrhi::BindingSetItem::RawBuffer_UAV(21, resources.worldSpaceReservoirsStats),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(22, resources.worldSpaceLightSamplesBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(23, resources.worldSpaceGridStatsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(24, resources.worldSpaceReservoirSurfaceCandidatesBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(18, resources.worldSpaceLightReservoirsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.worldSpaceGridStatsBuffer),
+            nvrhi::BindingSetItem::RawBuffer_UAV(20, resources.worldSpaceReservoirsStats),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.worldSpaceLightSamplesBuffer),
+
+            nvrhi::BindingSetItem::TypedBuffer_SRV(26, m_WSRUpdatableGridQueue),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(27, resources.worldSpaceReorderedLightSamplesBuffer),
+            nvrhi::BindingSetItem::RawBuffer_SRV(28, m_WSRIndirectParamsBuffer),
         };
 
         const nvrhi::BindingSetHandle bindingSet = m_Device->createBindingSet(bindingSetDesc, m_BindingLayout);
@@ -260,6 +320,49 @@ void LightingPasses::CreateBindingSet(
     m_LightReservoirBuffer = resources.LightReservoirBuffer;
     m_SecondarySurfaceBuffer = resources.SecondaryGBuffer;
     m_GIReservoirBuffer = resources.GIReservoirBuffer;
+
+    m_WorldSpaceReservoirStatsBuffer = resources.worldSpaceReservoirsStats;
+    m_WorldSpaceGridStatsBuffer = resources.worldSpaceGridStatsBuffer;
+    m_WorldSpaceLightReservoirsBuffer = resources.worldSpaceLightReservoirsBuffer;
+    
+    {
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::RawBuffer_UAV(0, m_WSRIndirectParamsBuffer),
+            nvrhi::BindingSetItem::RawBuffer_UAV(1, resources.worldSpaceReservoirsStats),
+        };
+
+        m_WSRSetIndirectParamsPass.bindingSet = m_Device->createBindingSet(bindingSetDesc, m_WSRSetIndirectParamsPass.bindingLayout);
+    }
+    {
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, resources.worldSpaceGridStatsBuffer),
+            nvrhi::BindingSetItem::RawBuffer_UAV(1, resources.worldSpaceReservoirsStats),
+            nvrhi::BindingSetItem::TypedBuffer_UAV(2, m_WSRUpdatableGridQueue),
+        };
+
+        m_WSRSetGridStatsPass.bindingSet = m_Device->createBindingSet(bindingSetDesc, m_WSRSetGridStatsPass.bindingLayout);
+    }
+    {
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::RawBuffer_SRV(0, resources.worldSpaceReservoirsStats),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, resources.worldSpaceLightSamplesBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, resources.worldSpaceGridStatsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, resources.worldSpaceReorderedLightSamplesBuffer),
+        };
+
+        m_WSRReorderDataPass.bindingSet = m_Device->createBindingSet(bindingSetDesc, m_WSRReorderDataPass.bindingLayout);
+    }
+    {
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, resources.worldSpaceLightReservoirsBuffer),
+        };
+
+        m_WSRResetPass.bindingSet = m_Device->createBindingSet(bindingSetDesc, m_WSRResetPass.bindingLayout);
+    }
 }
 
 void LightingPasses::CreateComputePass(ComputePass& pass, const char* shaderName, const std::vector<donut::engine::ShaderMacro>& macros)
@@ -344,7 +447,6 @@ void LightingPasses::createReGIRPipeline(const rtxdi::ReGIRStaticParameters& reg
 
 void LightingPasses::createReSTIRDIPipelines(const std::vector<donut::engine::ShaderMacro>& regirMacros, bool useRayQuery)
 {
-    m_WSRDirectLightingSamplePass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/WSRDirectLightingSample.hlsl", regirMacros, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_GenerateInitialSamplesPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DIGenerateInitialSamples.hlsl", regirMacros, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_TemporalResamplingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DITemporalResampling.hlsl", {}, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
     m_SpatialResamplingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/DISpatialResampling.hlsl", {}, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
@@ -363,6 +465,32 @@ void LightingPasses::createReSTIRGIPipelines(bool useRayQuery)
     m_GIFinalShadingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/GIFinalShading.hlsl", {}, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
 }
 
+void LightingPasses::createWSRPipelines(const std::vector<donut::engine::ShaderMacro>& regirMacros, bool useRayQuery)
+{    
+    donut::log::debug("Initializing WorldSpaceReservoirUpdatePass...");
+
+    auto Create = [&](const char* path, nvrhi::ShaderHandle &shader, nvrhi::ComputePipelineHandle &pipeline, nvrhi::BindingLayoutHandle &bindingLayout, bool useBindless = false)
+    {
+        shader = m_ShaderFactory->CreateShader(path, "main", nullptr, nvrhi::ShaderType::Compute);
+
+        nvrhi::ComputePipelineDesc pipelineDesc;
+        pipelineDesc.bindingLayouts = { bindingLayout };
+        pipelineDesc.CS = shader;
+        pipeline = m_Device->createComputePipeline(pipelineDesc);
+    };
+
+    Create("app/LightingPasses/WSR/SetIndirectParams.hlsl", m_WSRSetIndirectParamsPass.pass.Shader, m_WSRSetIndirectParamsPass.pass.Pipeline, m_WSRSetIndirectParamsPass.bindingLayout);
+    Create("app/LightingPasses/WSR/SetGridStats.hlsl", m_WSRSetGridStatsPass.pass.Shader, m_WSRSetGridStatsPass.pass.Pipeline, m_WSRSetGridStatsPass.bindingLayout);
+    Create("app/LightingPasses/WSR/ReorderData.hlsl", m_WSRReorderDataPass.pass.Shader, m_WSRReorderDataPass.pass.Pipeline, m_WSRReorderDataPass.bindingLayout);
+    Create("app/LightingPasses/WSR/ResetReservoir.hlsl", m_WSRResetPass.pass.Shader, m_WSRResetPass.pass.Pipeline, m_WSRResetPass.bindingLayout);
+
+    m_WSRUpdatePass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/WSR/UpdateReservoir.hlsl", 
+        regirMacros, useRayQuery, WORLD_SPACE_RESERVOIR_NUM_PER_GRID, m_BindingLayout, nullptr, m_BindlessLayout);
+
+    m_WSRDIShadingPass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/WSR/DIShading.hlsl", 
+        regirMacros, useRayQuery, RTXDI_SCREEN_SPACE_GROUP_SIZE, m_BindingLayout, nullptr, m_BindlessLayout);
+}
+
 void LightingPasses::CreatePipelines(const rtxdi::ReGIRStaticParameters& regirStaticParams, bool useRayQuery)
 {
     std::vector<donut::engine::ShaderMacro> regirMacros = {
@@ -372,6 +500,7 @@ void LightingPasses::CreatePipelines(const rtxdi::ReGIRStaticParameters& regirSt
     createPresamplingPipelines();
     createReGIRPipeline(regirStaticParams, regirMacros);
     createReSTIRDIPipelines(regirMacros, useRayQuery);
+    createWSRPipelines(regirMacros, useRayQuery);
     createReSTIRGIPipelines(useRayQuery);
 }
 
@@ -560,46 +689,13 @@ void LightingPasses::PrepareForLightSampling(
     }
 }
 
-
-void LightingPasses::WSRDirectLightingSample(
-    nvrhi::ICommandList* commandList,
-    rtxdi::ImportanceSamplingContext& isContext,
-    const donut::engine::IView& view,
-    const donut::engine::IView& previousView,
-    const RenderSettings& localSettings,
-    uint wsrFlag)
-{
-    rtxdi::ReSTIRDIContext& restirDIContext = isContext.getReSTIRDIContext();
-    rtxdi::ReGIRContext& regirContext = isContext.getReGIRContext();
-
-    ResamplingConstants constants = {};
-    constants.frameIndex = restirDIContext.getFrameIndex();
-    view.FillPlanarViewConstants(constants.view);
-    previousView.FillPlanarViewConstants(constants.prevView);
-    FillResamplingConstants(constants, localSettings, isContext);
-    constants.worldSpaceReservoirFlag = wsrFlag;
-    constants.restirDI.initialSamplingParams.environmentMapImportanceSampling = 1;
-
-    commandList->writeBuffer(m_ConstantBuffer, &constants, sizeof(constants));
-
-    dm::int2 dispatchSize = { 
-        view.GetViewExtent().width(),
-        view.GetViewExtent().height()
-    };
-
-    if (restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off)
-        dispatchSize.x /= 2;
-
-    // nvrhi::utils::BufferUavBarrier(commandList, m_LightReservoirBuffer);
-
-    ExecuteRayTracingPass(commandList, m_WSRDirectLightingSamplePass, localSettings.enableRayCounts, "WSRDirectLightingSample", dispatchSize, ProfilerSection::WSRDirectLightingSample);
-}
-
 void LightingPasses::RenderDirectLighting(
     nvrhi::ICommandList* commandList,
     rtxdi::ReSTIRDIContext& context,
     const donut::engine::IView& view,
-    const RenderSettings& localSettings)
+    const RenderSettings& localSettings,
+    uint32_t wsrFlag,
+    bool wsrReset)
 {
     dm::int2 dispatchSize = { 
         view.GetViewExtent().width(),
@@ -617,7 +713,69 @@ void LightingPasses::RenderDirectLighting(
 
     ExecuteRayTracingPass(commandList, m_GenerateInitialSamplesPass, localSettings.enableRayCounts, "DIGenerateInitialSamples", dispatchSize, ProfilerSection::InitialSamples);
 
-    if (context.getResamplingMode() == rtxdi::ReSTIRDI_ResamplingMode::FusedSpatiotemporal)
+    if (wsrReset)
+    {
+        commandList->beginMarker("WorldSpaceReservoirUpdatePass::Reset");
+
+        nvrhi::ComputeState state;
+        state.bindings = { m_WSRResetPass.bindingSet };
+        state.pipeline = m_WSRResetPass.pass.Pipeline;
+        commandList->setComputeState(state);
+
+        commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
+
+        commandList->endMarker();
+    }
+    else if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_ENABLE)
+    {
+        commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update");
+        m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+
+        {
+            nvrhi::ComputeState state;
+            state.bindings = { m_WSRSetGridStatsPass.bindingSet };
+            state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
+            commandList->setComputeState(state);
+            commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
+        }
+        {
+            nvrhi::ComputeState state;
+            state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
+            state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
+            commandList->setComputeState(state);
+            commandList->dispatch(1, 1, 1);
+        }
+        {
+            nvrhi::ComputeState state;
+            state.bindings = { m_WSRReorderDataPass.bindingSet };
+            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+            state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
+            commandList->setComputeState(state);
+            commandList->dispatchIndirect(0);
+        }
+        {
+            nvrhi::ComputeState state;
+            state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+            state.pipeline = m_WSRUpdatePass.ComputePipeline;
+            commandList->setComputeState(state);
+            commandList->dispatchIndirect(16);
+        }
+
+        commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
+        commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
+
+        m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+        commandList->endMarker();
+    }
+
+    if (wsrFlag & WORLD_SPACE_RESERVOIR_DI_ENABLE)
+    {
+        nvrhi::utils::BufferUavBarrier(commandList, m_WorldSpaceLightReservoirsBuffer);
+
+        ExecuteRayTracingPass(commandList, m_WSRDIShadingPass, localSettings.enableRayCounts, "WSRDIShading", dispatchSize, ProfilerSection::WorldSpaceReservoirDIShading);
+    }
+    else if (context.getResamplingMode() == rtxdi::ReSTIRDI_ResamplingMode::FusedSpatiotemporal)
     {
         nvrhi::utils::BufferUavBarrier(commandList, m_LightReservoirBuffer);
 
@@ -715,6 +873,49 @@ void LightingPasses::RenderBrdfRays(
 
         ExecuteRayTracingPass(commandList, m_ShadeSecondarySurfacesPass, localSettings.enableRayCounts, "ShadeSecondarySurfaces", dispatchSize, ProfilerSection::ShadeSecondary, nullptr);
         
+        if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        {
+            commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update Secondary");
+            m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+
+            {
+                nvrhi::ComputeState state;
+                state.bindings = { m_WSRSetGridStatsPass.bindingSet };
+                state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
+                commandList->setComputeState(state);
+                commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
+            }
+            {
+                nvrhi::ComputeState state;
+                state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
+                state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
+                commandList->setComputeState(state);
+                commandList->dispatch(1, 1, 1);
+            }
+            {
+                nvrhi::ComputeState state;
+                state.bindings = { m_WSRReorderDataPass.bindingSet };
+                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+                state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
+                commandList->setComputeState(state);
+                commandList->dispatchIndirect(0);
+            }
+            {
+                nvrhi::ComputeState state;
+                state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+                state.pipeline = m_WSRUpdatePass.ComputePipeline;
+                commandList->setComputeState(state);
+                commandList->dispatchIndirect(16);
+            }
+
+            commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
+            commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
+
+            m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+            commandList->endMarker();
+        }
+
         if (enableReSTIRGI)
         {
             rtxdi::ReSTIRGI_ResamplingMode resamplingMode = restirGIContext.getResamplingMode();

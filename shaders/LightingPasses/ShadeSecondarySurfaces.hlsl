@@ -26,7 +26,7 @@
 #endif
 
 #include "ShadingHelpers.hlsli"
-#include "WSRSampleHelper.hlsli"
+#include "WSR/Helper.hlsli"
 
 static const float c_MaxIndirectRadiance = 10;
 
@@ -92,8 +92,6 @@ void RayGen()
         RAB_LightSample lightSample = RAB_EmptyLightSample();
         RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
         
-        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_COMBINE) || 
-            (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)))
         {
             reservoir = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
                     sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
@@ -105,11 +103,15 @@ void RayGen()
 #endif
                 lightSample);
         }
+        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        {
+            StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, 1.f);
+        }
         
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {
             bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-            SampleWorldSpaceReservoir(reservoir, lightSample, rng, secondarySurface, primarySurface.worldPos, g_Const.sceneGridScale, useJitter);
+            SampleWorldSpaceReservoir(rng, secondarySurface, primarySurface.worldPos, g_Const.sceneGridScale, useJitter, reservoir, lightSample);
         }
 
         if (g_Const.brdfPT.enableSecondaryResampling)
@@ -156,45 +158,24 @@ void RayGen()
             radiance *= c_MaxIndirectRadiance / indirectLuminance;
 
 
-        if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY))
-        {
-            RTXDI_DIReservoir temp = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
-                    sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
-#if RTXDI_ENABLE_PRESAMPLING
-                g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
-#if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
-                g_Const.regir,
-#endif
-#endif
-                lightSample);
+//         if ((g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY))
+//         {
+//             RTXDI_DIReservoir temp = RTXDI_SampleLightsForSurface(rng, tileRng, secondarySurface,
+//                     sampleParams, g_Const.lightBufferParams, g_Const.brdfPT.secondarySurfaceReSTIRDIParams.initialSamplingParams.localLightSamplingMode,
+// #if RTXDI_ENABLE_PRESAMPLING
+//                 g_Const.localLightsRISBufferSegmentParams, g_Const.environmentLightRISBufferSegmentParams,
+// #if RTXDI_REGIR_MODE != RTXDI_REGIR_MODE_DISABLED
+//                 g_Const.regir,
+// #endif
+// #endif
+//                 lightSample);
 
-            RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
-            RTXDI_CombineDIReservoirs(state, temp, 0.5f, temp.targetPdf);
-            RTXDI_CombineDIReservoirs(state, reservoir, RAB_GetNextRandom(rng), reservoir.targetPdf);
-            RTXDI_FinalizeResampling(state, 1.0, state.M);
-            reservoir = state;            
-
-            StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale);
-            // CacheEntry gridId;
-            // if (TryInsertEntry(secondarySurface.worldPos, secondarySurface.normal, secondarySurface.viewDepth, g_Const.sceneGridScale, gridId))
-            // {
-            //     WSRLightSample wsrLightSample = (WSRLightSample)0;
-            //     wsrLightSample.gridId = gridId;
-            //     wsrLightSample.lightIndex = RTXDI_GetDIReservoirLightIndex(reservoir);
-            //     wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
-            //     wsrLightSample.targetPdf = RAB_GetLightSampleTargetPdfForSurface(lightSample, secondarySurface) * 10.f;
-            //     wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
-            //     wsrLightSample.random = RAB_GetNextRandom(rng);
-            //     uint sampleCnt;
-            //     InterlockedAdd(u_WorldSpaceGridStatsBuffer[wsrLightSample.gridId].sampleCnt, 1, sampleCnt);
-            //     // if (sampleCnt < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
-            //     {
-            //         uint index;
-            //         u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-            //         u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
-            //     }
-            // }
-        }
+//             RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+//             RTXDI_CombineDIReservoirs(state, temp, 0.5f, temp.targetPdf);
+//             RTXDI_CombineDIReservoirs(state, reservoir, RAB_GetNextRandom(rng), reservoir.targetPdf);
+//             RTXDI_FinalizeResampling(state, 1.0, state.M);
+//             reservoir = state;
+//         }
     }
 
     bool outputShadingResult = true;

@@ -81,7 +81,7 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
-static int g_SceneId = 1;
+static int g_SceneId = 0;
 static const char* g_ScenePath[3] = {
     "/media/test.json",
     "/media/bistro-rtxdi.scene.json",
@@ -135,7 +135,7 @@ private:
     // std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
     // std::unique_ptr<VMFPass> m_VMFPass;
     std::unique_ptr<EnvGuidingUpdatePass> m_EnvGuidingUpdatePass;
-    std::unique_ptr<WorldSpaceReservoirUpdatePass> m_WorldSpaceReservoirUpdatePass;
+    // std::unique_ptr<WorldSpaceReservoirUpdatePass> m_WorldSpaceReservoirUpdatePass;
     
 
     uint32_t m_RenderFrameIndex = 0;
@@ -266,7 +266,7 @@ public:
         // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         // m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
         m_EnvGuidingUpdatePass = std::make_unique<EnvGuidingUpdatePass>(GetDevice(), m_ShaderFactory);
-        m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
+        // m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
 
 #ifdef WITH_DLSS
         {
@@ -408,7 +408,7 @@ public:
         // m_CalculateEnvVisCdfPass->CreatePipeline();
         // m_VMFPass->CreatePipeline();
         m_EnvGuidingUpdatePass->CreatePipeline();
-        m_WorldSpaceReservoirUpdatePass->CreatePipeline();
+        // m_WorldSpaceReservoirUpdatePass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -757,7 +757,7 @@ public:
             // m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
             // m_VMFPass->CreateBindingSet(*m_RtxdiResources);
             m_EnvGuidingUpdatePass->CreateBindingSet(*m_RtxdiResources);
-            m_WorldSpaceReservoirUpdatePass->CreateBindingSet(*m_RtxdiResources);
+            // m_WorldSpaceReservoirUpdatePass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)
@@ -1246,10 +1246,9 @@ public:
 
         const bool checkerboard = restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off;
 
-        bool enableWSRGenerateSamplesPass = m_ui.directLightingMode == DirectLightingMode::WSR;
-        bool enableDirectReStirPass = m_ui.directLightingMode == DirectLightingMode::ReStir;
+        bool enableDirectReStirPass = m_ui.directLightingMode == DirectLightingMode::ReStir ||
+                                    (m_ui.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_ENABLE);
         bool enableBrdfAndIndirectPass = m_ui.directLightingMode == DirectLightingMode::Brdf || 
-                                        //  m_ui.directLightingMode == DirectLightingMode::WSR ||
                                          m_ui.indirectLightingMode != IndirectLightingMode::None;
         bool enableIndirect = m_ui.indirectLightingMode != IndirectLightingMode::None;
 
@@ -1268,7 +1267,7 @@ public:
             lightingSettings.enableGradients = false;
         }
 
-        if (enableDirectReStirPass || enableIndirect || enableWSRGenerateSamplesPass)
+        if (enableDirectReStirPass || enableIndirect)
         {
             m_LightingPasses->PrepareForLightSampling(m_CommandList,
                 *m_isContext,
@@ -1276,15 +1275,6 @@ public:
                 lightingSettings,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 m_ui.worldSpaceReservoirFlag);
-        
-            if (enableWSRGenerateSamplesPass)
-            {
-                m_LightingPasses->WSRDirectLightingSample(m_CommandList,
-                    *m_isContext,
-                    m_View, m_ViewPrevious,
-                    lightingSettings,
-                    m_ui.worldSpaceReservoirFlag);
-            }
         }
 
         if (enableDirectReStirPass)
@@ -1294,7 +1284,9 @@ public:
             m_LightingPasses->RenderDirectLighting(m_CommandList,
                 restirDIContext,
                 m_View,
-                lightingSettings);
+                lightingSettings,
+                m_ui.worldSpaceReservoirFlag,
+                m_ui.worldSpaceReservoirResetFlag);
 
             // Post-process the gradients into a confidence buffer usable by NRD
             if (lightingSettings.enableGradients)
@@ -1320,8 +1312,8 @@ public:
                 m_ui.gbufferSettings,
                 *m_EnvironmentLight,
                 /* enableIndirect = */ enableIndirect,
-                /* enableAdditiveBlend = */ enableDirectReStirPass | enableWSRGenerateSamplesPass,
-                /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf || m_ui.directLightingMode == DirectLightingMode::WSR,
+                /* enableAdditiveBlend = */ enableDirectReStirPass,
+                /* enableEmissiveSurfaces = */ m_ui.directLightingMode == DirectLightingMode::Brdf,
                 /* enableAccumulation = */ m_ui.aaMode == AntiAliasingMode::Accumulation,
                 enableReSTIRGI,
                 m_ui.guidingFlag,
@@ -1329,29 +1321,9 @@ public:
                 );
         }
 
-        if (m_ui.guidingResetFlag)
-        {
-            m_ui.guidingResetFlag = false;
-            m_EnvGuidingUpdatePass->Reset(m_CommandList);
-        }
-        else if (m_ui.guidingFlag & GUIDING_FLAG_ENABLE)
-        {
-            m_EnvGuidingUpdatePass->Process(m_CommandList);
-        }
-
-        if (m_ui.worldSpaceReservoirResetFlag)
-        {
-            m_ui.worldSpaceReservoirResetFlag = false;
-            m_WorldSpaceReservoirUpdatePass->Reset(m_CommandList);
-        }
-        else if (m_ui.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_ENABLE)
-        {
-            m_WorldSpaceReservoirUpdatePass->Process(m_CommandList);
-        }
-
         // If none of the passes above were executed, clear the textures to avoid stale data there.
         // It's a weird mode but it can be selected from the UI.
-        if (!enableDirectReStirPass && !enableBrdfAndIndirectPass && !enableWSRGenerateSamplesPass)
+        if (!enableDirectReStirPass && !enableBrdfAndIndirectPass)
         {
             m_CommandList->clearTextureFloat(m_RenderTargets->DiffuseLighting, nvrhi::AllSubresources, nvrhi::Color(0.f));
             m_CommandList->clearTextureFloat(m_RenderTargets->SpecularLighting, nvrhi::AllSubresources, nvrhi::Color(0.f));

@@ -13,6 +13,7 @@
 #include "RtxdiApplicationBridge.hlsli"
 
 #include <rtxdi/InitialSamplingFunctions.hlsli>
+#include "WSR/Helper.hlsli"
 
 #if USE_RAY_QUERY
 [numthreads(RTXDI_SCREEN_SPACE_GROUP_SIZE, RTXDI_SCREEN_SPACE_GROUP_SIZE, 1)]
@@ -54,13 +55,21 @@ void RayGen()
 #endif
         lightSample);
 
+    bool storeSample = true;
     if (g_Const.restirDI.initialSamplingParams.enableInitialVisibility && RTXDI_IsValidDIReservoir(reservoir))
     {
         if (!RAB_GetConservativeVisibility(surface, lightSample))
         {
             RTXDI_StoreVisibilityInDIReservoir(reservoir, 0, true);
+            storeSample = false;
         }
     }
+
+    uint grid = 0;
+    if (RAB_GetNextRandom(rng) < 0.1f)
+        grid = StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale, storeSample ? 1.f : 0.f);
+
+    // u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
 
     RTXDI_StoreDIReservoir(reservoir, g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.initialSamplingOutputBufferIndex);
 }
