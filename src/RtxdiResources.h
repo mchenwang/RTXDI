@@ -43,12 +43,6 @@ public:
     nvrhi::TextureHandle LocalLightPdfTexture;
     nvrhi::BufferHandle GIReservoirBuffer;
 
-    nvrhi::BufferHandle envGuidingMap;
-    nvrhi::BufferHandle envGuidingStats;
-    nvrhi::BufferHandle envRadianceBuffer;
-    nvrhi::BufferHandle envRadianceBufferReordered;
-    nvrhi::BufferHandle envGuidingGridStatsBuffer;
-
     nvrhi::TextureHandle debugTexture1;
     nvrhi::TextureHandle debugTexture2;
 

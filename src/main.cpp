@@ -53,9 +53,6 @@
 #include "Testing.h"
 #include "DebugViz/DebugVizPasses.h"
 
-#include "EnvGuidingUpdatePass.h"
-#include "WorldSpaceReservoirUpdatePass.h"
-
 #if WITH_NRD
 #include "NrdIntegration.h"
 #endif
@@ -131,12 +128,6 @@ private:
     std::unique_ptr<engine::IesProfileLoader> m_IesProfileLoader;
     std::shared_ptr<Profiler> m_Profiler;
     std::unique_ptr<DebugVizPasses> m_DebugVizPasses;
-
-    // std::unique_ptr<CalculateEnvVisCdfPass> m_CalculateEnvVisCdfPass;
-    // std::unique_ptr<VMFPass> m_VMFPass;
-    std::unique_ptr<EnvGuidingUpdatePass> m_EnvGuidingUpdatePass;
-    // std::unique_ptr<WorldSpaceReservoirUpdatePass> m_WorldSpaceReservoirUpdatePass;
-    
 
     uint32_t m_RenderFrameIndex = 0;
     
@@ -262,11 +253,6 @@ public:
         m_GlassPass = std::make_unique<GlassPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_Profiler, m_BindlessLayout);
         m_PrepareLightsPass = std::make_unique<PrepareLightsPass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
         m_LightingPasses = std::make_unique<LightingPasses>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_Profiler, m_BindlessLayout);
-
-        // m_CalculateEnvVisCdfPass = std::make_unique<CalculateEnvVisCdfPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
-        // m_VMFPass = std::make_unique<VMFPass>(GetDevice(), m_ShaderFactory, m_BindlessLayout);
-        m_EnvGuidingUpdatePass = std::make_unique<EnvGuidingUpdatePass>(GetDevice(), m_ShaderFactory);
-        // m_WorldSpaceReservoirUpdatePass = std::make_unique<WorldSpaceReservoirUpdatePass>(GetDevice(), m_ShaderFactory, m_CommonPasses, m_Scene, m_BindlessLayout);
 
 #ifdef WITH_DLSS
         {
@@ -404,11 +390,6 @@ public:
         m_PostprocessGBufferPass->CreatePipeline();
         m_GlassPass->CreatePipeline(m_ui.useRayQuery);
         m_PrepareLightsPass->CreatePipeline();
-
-        // m_CalculateEnvVisCdfPass->CreatePipeline();
-        // m_VMFPass->CreatePipeline();
-        m_EnvGuidingUpdatePass->CreatePipeline();
-        // m_WorldSpaceReservoirUpdatePass->CreatePipeline();
     }
 
     virtual bool LoadScene(std::shared_ptr<vfs::IFileSystem> fs, const std::filesystem::path& sceneFileName) override 
@@ -753,11 +734,6 @@ public:
                 m_Scene->GetPrevTopLevelAS(),
                 *m_RenderTargets,
                 *m_RtxdiResources);
-
-            // m_CalculateEnvVisCdfPass->CreateBindingSet(*m_RtxdiResources);
-            // m_VMFPass->CreateBindingSet(*m_RtxdiResources);
-            m_EnvGuidingUpdatePass->CreateBindingSet(*m_RtxdiResources);
-            // m_WorldSpaceReservoirUpdatePass->CreateBindingSet(*m_RtxdiResources);
         }
 
         if (rtxdiResourcesCreated || m_ui.reloadShaders)

@@ -164,51 +164,6 @@ RtxdiResources::RtxdiResources(
     giReservoirBufferDesc.canHaveUAVs = true;
     GIReservoirBuffer = device->createBuffer(giReservoirBufferDesc);
 
-    {
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(EnvGuidingData) * WORLD_GRID_SIZE;
-            desc.structStride = sizeof(EnvGuidingData);
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            desc.keepInitialState = true;
-            desc.debugName = "envGuidingMap";
-            desc.canHaveUAVs = true;
-            envGuidingMap = device->createBuffer(desc);
-        }
-        {
-            nvrhi::BufferDesc desc;
-            desc.debugName = "envGuidingStats";
-            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-            desc.keepInitialState = true;
-            desc.canHaveRawViews = true;
-            desc.canHaveUAVs = true;
-            desc.byteSize = sizeof(EnvGuidingStats);
-            envGuidingStats = device->createBuffer(desc);
-        }
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(EnvRadianceData) * ENV_GUID_MAX_TEMP_RAY_NUM;
-            desc.structStride = sizeof(EnvRadianceData);
-            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-            desc.keepInitialState = true;
-            desc.debugName = "envRadianceBuffer";
-            desc.canHaveUAVs = true;
-            envRadianceBuffer = device->createBuffer(desc);
-            desc.debugName = "envRadianceBufferReordered";
-            envRadianceBufferReordered = device->createBuffer(desc);
-        }
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(EnvGuidingGridStats) * WORLD_GRID_SIZE;
-            desc.structStride = sizeof(EnvGuidingGridStats);
-            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-            desc.keepInitialState = true;
-            desc.debugName = "envGuidingGridStatsBuffer";
-            desc.canHaveUAVs = true;
-            envGuidingGridStatsBuffer = device->createBuffer(desc);
-        }
-    }
-
     nvrhi::TextureDesc debugTexture1Desc;
     debugTexture1Desc.width = viewportWidth;
     debugTexture1Desc.height = viewportHeight;
@@ -229,17 +184,6 @@ RtxdiResources::RtxdiResources(
     debugTexture2Desc.format = nvrhi::Format::RGBA32_FLOAT;
     debugTexture2 = device->createTexture(debugTexture2Desc);
 
-    // {
-    //     nvrhi::BufferDesc desc;
-    //     desc.byteSize = sizeof(uint32_t) * WORLD_GRID_SIZE;
-    //     desc.format = nvrhi::Format::R32_UINT;
-    //     desc.structStride = sizeof(uint32_t);
-    //     desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-    //     desc.keepInitialState = true;
-    //     desc.debugName = "debugBuffer1";
-    //     desc.canHaveUAVs = true;
-    //     debugBuffer1 = device->createBuffer(desc);
-    // }
     {
         nvrhi::BufferDesc desc;
         desc.byteSize = sizeof(uint32_t) * WORLD_GRID_SIZE;
