@@ -65,11 +65,14 @@ void RayGen()
         }
     }
 
-    uint grid = 0;
-    if (RAB_GetNextRandom(rng) < 0.1f)
-        grid = StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale, storeSample ? 1.f : 0.f);
+    if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY)
+    {
+        uint grid = 0;
+        if (RAB_GetNextRandom(rng) < (1.f / (1.f + exp(-surface.viewDepth)) - 0.5f))
+            grid = StoreWorldSpaceLightSample(reservoir, lightSample, rng, surface, g_Const.sceneGridScale, storeSample ? 1.f : 0.f);
 
-    // u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
-
+        u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
+    }
+    
     RTXDI_StoreDIReservoir(reservoir, g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.initialSamplingOutputBufferIndex);
 }

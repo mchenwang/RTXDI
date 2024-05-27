@@ -118,9 +118,11 @@ uint SampleWorldSpaceReservoir(
             
             if (FindEntry(surface.worldPos + posJitter, normal, surface.viewDepth, sceneGridScale, gridId))
             {
-                for (uint j = 0; j < 5; j++)
+                // for (uint j = 0; j < WORLD_SPACE_RESERVOIR_NUM_PER_GRID; j++)
+                for (uint j = 0; j < 1; j++)
                 {
                     uint i = clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
+                    // uint i = j;
                     uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + i;
                     
                     RAB_Surface neighborSurface = UnpackWSRSurface(u_WorldSpaceLightReservoirs[wsReservoirIndex].packedSurface);

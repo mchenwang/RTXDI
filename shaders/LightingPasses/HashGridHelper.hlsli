@@ -4,11 +4,6 @@
 static const uint3 GRID_DIMENSIONS = uint3(WORLD_GRID_DIMENSION, WORLD_GRID_DIMENSION, WORLD_GRID_DIMENSION);
 static const uint GRID_SIZE = GRID_DIMENSIONS.x * GRID_DIMENSIONS.y * GRID_DIMENSIONS.z;
 
-int3 GetUniformGridCell(float3 wsPosition, float cellSize)
-{
-    return floor(wsPosition / cellSize);
-}
-
 uint HashJenkins32(uint a)
 {
     a = (a + 0x7ed55d16) + (a << 12);
@@ -20,97 +15,7 @@ uint HashJenkins32(uint a)
     return a;
 }
 
-uint GetUniformGridCellHashId(int3 cell, float3 normal)
-{
-    const uint p1 = 73856093;   // some large primes 
-    const uint p2 = 19349663;
-    const uint p3 = 83492791;
-    uint hashId = (p1 * cell.x) ^ (p2 * cell.y) ^ (p3 * cell.z);
-    // uint hashId = HashJenkins32(cell.x) ^ HashJenkins32(cell.y) ^ HashJenkins32(cell.z);
-    
-    uint normalBits =
-        (normal.x >= 0 ? 1 : 0) +
-        (normal.y >= 0 ? 2 : 0) +
-        (normal.z >= 0 ? 4 : 0);
-    
-    hashId = (normalBits << 27) | hashId;
-
-    hashId %= GRID_SIZE;
-    return hashId;
-}
-
-
-uint ComputeSpatialHash(float3 wsPosition, float3 normal, float scale)
-{
-    return GetUniformGridCellHashId(GetUniformGridCell(wsPosition, scale), normal);
-}
-
-#if 0
-
-uint HashUInt(uint v)
-{
-    return HashJenkins32(v) % GRID_SIZE;
-}
-
-uint HashInt(int v)
-{
-    return HashJenkins32(abs(v)) % GRID_SIZE;
-    // return HashJenkins32(v);
-    // const uint p1 = 73856093;   // some large primes 
-    // const uint p2 = 19349663;
-    // const uint p3 = 83492791;
-    // uint hashId = (p1 * v) ^ (p2 * v) ^ (p3 * v);
-    // return hashId % GRID_SIZE;
-    // // v = ~v + (v << 15); // v = (v << 15) - v - 1;
-    // v = v ^ (v >> 12);
-    // v = v + (v << 2);
-    // v = v ^ (v >> 4);
-    // v = v * 2057; // v = (v + (v << 3)) + (v << 11);
-    // v = v ^ (v >> 16);
-    // return v;
-}
-
-uint HashS(float3 p, float s)
-{
-    return HashUInt(floor(p.x / s) + HashUInt(floor(p.y / s) + HashInt(floor(p.z / s))));
-    // int3 v = floor(p / s);
-    // const uint p1 = 73856093;
-    // const uint p2 = 19349663;
-    // const uint p3 = 83492791;
-    // uint hashId = (p1 * v.x) ^ (p2 * v.y) ^ (p3 * v.z);
-    // return hashId;
-}
-
-uint HashSStar(float3 p, float s)
-{
-    // return ((HashS(p, s * 2.f) << 0) % (GRID_SIZE / 8)) + ((floor(p.x / s) % 2) + 2 * (floor(p.y / s) % 2) + 4 * (floor(p.z / s) % 2)) * (GRID_SIZE / 8);
-    return ((HashS(p, s * 2.f) % (GRID_SIZE / 8)) << 3) + 
-           (
-                abs((floor(p.x / s)) % 2) +
-                abs((floor(p.y / s)) % 2) * 2 +
-                abs((floor(p.z / s)) % 2) * 4
-           ) * (GRID_SIZE / 8);
-}
-
-float HashF(float p, float s, int n)
-{
-    // return sin(2.f * c_pi * p / n);
-    return sin(p * 0.5f);
-}
-
-uint ComputeSpatialHash(float3 wsPosition, float3 normal, float scale)
-{
-    // return GetUniformGridCellHashId(GetUniformGridCell(wsPosition, scale), normal);
-    float3 bais = float3(HashF(wsPosition.x, ceil(1.f / scale), 3),
-                         HashF(wsPosition.y, ceil(1.f / scale), 3),
-                         HashF(wsPosition.z, ceil(1.f / scale), 3));
-    // return HashS(wsPosition, scale);
-    // bais.yz = 0.f;
-    float a = 0.f;
-    return HashSStar(wsPosition + bais * a, scale) % GRID_SIZE;
-}
-
-#else
+#if 1
 
 #define HASH_GRID_POSITION_BIT_NUM          9
 #define HASH_GRID_POSITION_BIT_MASK         ((1u << HASH_GRID_POSITION_BIT_NUM) - 1)
@@ -184,8 +89,9 @@ HashKey ComputeSpatialHash(float3 samplePosition, float3 sampleNormal, float vie
         (sampleNormal.x >= -0.001 ? 1 : 0) +
         (sampleNormal.y >= -0.001 ? 2 : 0) +
         (sampleNormal.z >= -0.001 ? 4 : 0);
-
-    hashKey |= ((HashKey)normalBits << (HASH_GRID_POSITION_BIT_NUM * 3 + HASH_GRID_LEVEL_BIT_NUM));
+    
+    hashKey = (hashKey << 3) | normalBits;
+    // hashKey |= ((HashKey)normalBits << (HASH_GRID_POSITION_BIT_NUM * 3 + HASH_GRID_LEVEL_BIT_NUM));
 #endif // HASH_GRID_USE_NORMALS
 
     return hashKey;

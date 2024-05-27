@@ -61,8 +61,9 @@ void RayGen()
     const float3 colors[8] = {float3(0, 0, 0), float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1), 
                         float3(1, 0, 1), float3(1, 1, 0), float3(0, 1, 1), float3(1, 1, 1)};
 
-    u_DebugColor1[pixelPosition] = float4(colors[geoNormalBits], 1.f);
-    u_DebugColor2[pixelPosition] = float4(colors[normalBits], 1.f);
+    // u_DebugColor1[pixelPosition] = float4(colors[geoNormalBits], 1.f);
+    // u_DebugColor2[pixelPosition] = float4(colors[normalBits], 1.f);
+        u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
 
     float3 diffuse = 0;
     float3 specular = 0;

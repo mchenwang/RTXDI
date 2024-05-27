@@ -1021,11 +1021,9 @@ void UserInterface::PostProcessSettings()
             "Specular Confidence\0"
             "GI Reservoir Weight\0"
             "GI Reservoir M\0"
-            "Environment visibility map\0"
-            "World space environment visibility map\0"
             "World space grid\0"
-            "Env Vis Debug 1\0"
-            "Env Vis Debug 2\0"
+            "Debug Color 1\0"
+            "Debug Color 2\0"
         );
         ShowHelpMarker(
             "For HDR signals, displays a horizontal cross-section of the specified channel.\n"

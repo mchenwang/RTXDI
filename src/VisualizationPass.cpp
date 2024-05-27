@@ -72,23 +72,23 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
     }
 
     {
-        m_EnvVisPixelShader = shaderFactory.CreateShader("app/VisualizeEnvVis.hlsl", "main", nullptr, nvrhi::ShaderType::Pixel);
+        m_WSRVPixelShader = shaderFactory.CreateShader("app/VisualizeWSR.hlsl", "main", nullptr, nvrhi::ShaderType::Pixel);
         
-        auto cbd = nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(EnvVisibilityVisualizationConstants), "EnvVisibilityVisualizationConstants", 16);
+        auto cbd = nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(WSRVisualizationConstants), "WSRVisualizationConstants", 16);
 
-        m_EnvVisConstantBuffer = device->createBuffer(cbd);
+        m_WSRVConstantBuffer = device->createBuffer(cbd);
 
         auto bindingDesc = nvrhi::BindingSetDesc()
             .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
             .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferGeoNormals))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
-            .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_EnvVisConstantBuffer))
+            .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_WSRVConstantBuffer))
             .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.gridHashMapBuffer))
             .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.gridHashMapLockBuffer))
             ;
 
-        nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_EnvVisLayout, m_EnvVisSet);
+        nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_WSRVLayout, m_WSRVSet);
     }
 }
 
@@ -102,18 +102,16 @@ void VisualizationPass::Render(
     uint32_t visualizationMode,
     bool enableAccumulation)
 {
-    if (visualizationMode == VIS_MODE_ENV_VIS_MAP || 
-        visualizationMode == VIS_MODE_WS_GRID || 
-        visualizationMode == VIS_MODE_WS_ENV_VIS_MAP || 
+    if (visualizationMode == VIS_MODE_WS_GRID || 
         visualizationMode == VIS_MODE_ENV_VIS_DEBUG_1 || 
         visualizationMode == VIS_MODE_ENV_VIS_DEBUG_2)
     {
-        if (m_EnvVisPipeline == nullptr)
+        if (m_WSRVPipeline == nullptr)
         {
             auto pipelineDesc = nvrhi::GraphicsPipelineDesc()
                 .setVertexShader(m_VertexShader)
-                .setPixelShader(m_EnvVisPixelShader)
-                .addBindingLayout(m_EnvVisLayout)
+                .setPixelShader(m_WSRVPixelShader)
+                .addBindingLayout(m_WSRVLayout)
                 .setPrimType(nvrhi::PrimitiveType::TriangleStrip)
                 .setRenderState(nvrhi::RenderState()
                     .setDepthStencilState(nvrhi::DepthStencilState().disableDepthTest().disableStencil())
@@ -121,32 +119,21 @@ void VisualizationPass::Render(
                     .setBlendState(nvrhi::BlendState().setRenderTarget(0, 
                         nvrhi::utils::CreateAddBlendState(nvrhi::BlendFactor::One, nvrhi::BlendFactor::InvSrcAlpha))));
 
-            m_EnvVisPipeline = m_Device->createGraphicsPipeline(pipelineDesc, framebuffer);
+            m_WSRVPipeline = m_Device->createGraphicsPipeline(pipelineDesc, framebuffer);
         }
         
         auto state = nvrhi::GraphicsState()
-            .setPipeline(m_EnvVisPipeline)
-            .addBindingSet(m_EnvVisSet)
+            .setPipeline(m_WSRVPipeline)
+            .addBindingSet(m_WSRVSet)
             .setFramebuffer(framebuffer);
 
         static float3 s_cameraPositionPrev = renderView.GetViewOrigin();
-        static uint s_flag = 0;
         
-        EnvVisibilityVisualizationConstants constants = {};
+        WSRVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
         constants.sceneGridScale = 0.5f;
-        constants.flag = s_flag++;
 
-        if (visualizationMode == VIS_MODE_ENV_VIS_MAP)
-        {
-            state.setViewport(upscaledView.GetViewportState());
-            const auto& renderViewport = renderView.GetViewportState().viewports[0];
-            const auto& upscaledViewport = upscaledView.GetViewportState().viewports[0];
-            constants.resolutionScale.x = 1.f;
-            constants.resolutionScale.y = 1.f;
-        }
-        else
         {
             state.setViewport(upscaledView.GetViewportState());
             const auto& renderViewport = renderView.GetViewportState().viewports[0];
@@ -155,7 +142,7 @@ void VisualizationPass::Render(
             constants.resolutionScale.y = renderViewport.height() / upscaledViewport.height();
         }
 
-        commandList->writeBuffer(m_EnvVisConstantBuffer, &constants, sizeof(constants));
+        commandList->writeBuffer(m_WSRVConstantBuffer, &constants, sizeof(constants));
 
         commandList->setGraphicsState(state);
         commandList->draw(nvrhi::DrawArguments().setVertexCount(4));

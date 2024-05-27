@@ -48,11 +48,11 @@ private:
     
     nvrhi::BufferHandle m_ConstantBuffer;
 
-    nvrhi::BindingLayoutHandle m_EnvVisLayout;
-    nvrhi::BindingSetHandle m_EnvVisSet;
-    nvrhi::ShaderHandle m_EnvVisPixelShader;
-    nvrhi::GraphicsPipelineHandle m_EnvVisPipeline;
-    nvrhi::BufferHandle m_EnvVisConstantBuffer;
+    nvrhi::BindingLayoutHandle m_WSRVLayout;
+    nvrhi::BindingSetHandle m_WSRVSet;
+    nvrhi::ShaderHandle m_WSRVPixelShader;
+    nvrhi::GraphicsPipelineHandle m_WSRVPipeline;
+    nvrhi::BufferHandle m_WSRVConstantBuffer;
     
 public:
 
