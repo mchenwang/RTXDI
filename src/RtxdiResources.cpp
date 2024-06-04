@@ -194,37 +194,27 @@ RtxdiResources::RtxdiResources(
         desc.canHaveUAVs = true;
         gridHashMapBuffer = device->createBuffer(desc);
     }
-    {
-        nvrhi::BufferDesc desc;
-        desc.byteSize = sizeof(uint32_t) * WORLD_GRID_SIZE;
-        desc.structStride = sizeof(uint32_t);
-        desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-        desc.keepInitialState = true;
-        desc.debugName = "gridHashMapLockBuffer";
-        desc.canHaveUAVs = true;
-        gridHashMapLockBuffer = device->createBuffer(desc);
-    }
 
     {
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(WorldSpaceDIReservoir) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
+            desc.byteSize = sizeof(WSRSurfaceData) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID * 2;
+            desc.structStride = sizeof(WSRSurfaceData);
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.keepInitialState = true;
+            desc.debugName = "worldSpaceReservoirSurfaceBuffer";
+            desc.canHaveUAVs = true;
+            worldSpaceReservoirSurfaceBuffer = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(WorldSpaceDIReservoir) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID * 2;
             desc.structStride = sizeof(WorldSpaceDIReservoir);
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             desc.keepInitialState = true;
             desc.debugName = "worldSpaceLightReservoirsBuffer";
             desc.canHaveUAVs = true;
             worldSpaceLightReservoirsBuffer = device->createBuffer(desc);
-        }
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(WSRSurfaceData) * WORLD_GRID_SIZE * WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
-            desc.structStride = sizeof(WSRSurfaceData);
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            desc.keepInitialState = true;
-            desc.debugName = "worldSpaceReservoirSurfaceCandidatesBuffer";
-            desc.canHaveUAVs = true;
-            worldSpaceReservoirSurfaceCandidatesBuffer = device->createBuffer(desc);
         }
         {
             nvrhi::BufferDesc desc;
@@ -258,6 +248,16 @@ RtxdiResources::RtxdiResources(
             desc.debugName = "worldSpaceGridStatsBuffer";
             desc.canHaveUAVs = true;
             worldSpaceGridStatsBuffer = device->createBuffer(desc);
+        }
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(WSRCellDataInGrid) * WORLD_GRID_SIZE * 2;
+            desc.structStride = sizeof(WSRCellDataInGrid);
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            desc.keepInitialState = true;
+            desc.debugName = "worldSpaceCellStatsBuffer";
+            desc.canHaveUAVs = true;
+            worldSpaceCellStatsBuffer = device->createBuffer(desc);
         }
     }
 }

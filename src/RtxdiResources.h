@@ -47,14 +47,14 @@ public:
     nvrhi::TextureHandle debugTexture2;
 
     nvrhi::BufferHandle gridHashMapBuffer;
-    nvrhi::BufferHandle gridHashMapLockBuffer;
 
     nvrhi::BufferHandle worldSpaceLightReservoirsBuffer;
+    nvrhi::BufferHandle worldSpaceReservoirSurfaceBuffer;
     nvrhi::BufferHandle worldSpaceReservoirsStats;
     nvrhi::BufferHandle worldSpaceLightSamplesBuffer;
     nvrhi::BufferHandle worldSpaceReorderedLightSamplesBuffer;
     nvrhi::BufferHandle worldSpaceGridStatsBuffer;
-    nvrhi::BufferHandle worldSpaceReservoirSurfaceCandidatesBuffer;
+    nvrhi::BufferHandle worldSpaceCellStatsBuffer;
 
     RtxdiResources(
         nvrhi::IDevice* device, 

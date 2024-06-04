@@ -98,6 +98,9 @@ private:
       m_WSRSetGridStatsPass,
       m_WSRReorderDataPass,
       m_WSRResetPass;
+    ComputePass m_SetSurfaceInGridPass;
+    ComputePass m_WSRTemporalReusePass;
+    ComputePass m_WSRGridReusePass;
     RayTracingPass m_WSRUpdatePass;
     RayTracingPass m_WSRDIShadingPass;
 

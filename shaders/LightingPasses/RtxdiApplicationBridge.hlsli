@@ -91,13 +91,16 @@ RWTexture2D<float4> u_DebugColor1 : register(u14);
 RWTexture2D<float4> u_DebugColor2 : register(u15);
 
 RWStructuredBuffer<uint> u_GridHashMap : register(u16);
-RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u17);
+// RWStructuredBuffer<uint> u_GridNormalUnorderedMap : register(u17);
 
 // world space reserovir
-RWStructuredBuffer<WorldSpaceDIReservoir> u_WorldSpaceLightReservoirs : register(u18);
-RWStructuredBuffer<WSRGridStats> u_WorldSpaceGridStatsBuffer : register(u19);
-RWByteAddressBuffer u_WorldSpaceReservoirStats : register(u20);
-RWStructuredBuffer<WSRLightSample> u_WorldSpaceLightSamplesBuffer : register(u21);
+
+RWStructuredBuffer<WSRCellDataInGrid> u_WorldSpaceCellStatsBuffer : register(u17);
+RWStructuredBuffer<WSRSurfaceData> u_WorldSpaceReservoirSurface : register(u18);
+RWStructuredBuffer<WorldSpaceDIReservoir> u_WorldSpaceLightReservoirs : register(u19);
+RWStructuredBuffer<WSRGridStats> u_WorldSpaceGridStatsBuffer : register(u20);
+RWByteAddressBuffer u_WorldSpaceReservoirStats : register(u21);
+RWStructuredBuffer<WSRLightSample> u_WorldSpaceLightSamplesBuffer : register(u22);
 // world space reserovir update
 Buffer<uint> u_WorldSpaceReservoirUpdateGridQueue : register(t26);
 StructuredBuffer<WSRLightSample> t_WorldSpaceReorderedLightSamplesBuffer : register(t27);
@@ -447,6 +450,10 @@ RAB_Surface GetGBufferSurface(
     return surface;
 }
 
+float3 RAB_GetGBufferNormal(int2 pixelPosition)
+{
+    return octToNdirUnorm32(t_GBufferNormals[pixelPosition]);
+}
 
 // Reads the G-buffer, either the current one or the previous one, and returns a surface.
 // If the provided pixel position is outside of the viewport bounds, the surface

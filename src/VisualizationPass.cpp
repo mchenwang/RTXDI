@@ -80,12 +80,12 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
 
         auto bindingDesc = nvrhi::BindingSetDesc()
             .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
-            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferGeoNormals))
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferNormals))
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(2, renderTargets.GBufferGeoNormals))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
             .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_WSRVConstantBuffer))
             .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(2, rtxdiResources.gridHashMapBuffer))
-            .addItem(nvrhi::BindingSetItem::StructuredBuffer_UAV(3, rtxdiResources.gridHashMapLockBuffer))
             ;
 
         nvrhi::utils::CreateBindingSetAndLayout(device, nvrhi::ShaderType::AllGraphics, 0, bindingDesc, m_WSRVLayout, m_WSRVSet);
@@ -132,7 +132,7 @@ void VisualizationPass::Render(
         WSRVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
-        constants.sceneGridScale = 0.5f;
+        constants.sceneGridScale = 0.3f;
 
         {
             state.setViewport(upscaledView.GetViewportState());

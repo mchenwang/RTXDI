@@ -78,7 +78,7 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
-static int g_SceneId = 0;
+static int g_SceneId = 1;
 static const char* g_ScenePath[3] = {
     "/media/test.json",
     "/media/bistro-rtxdi.scene.json",
@@ -1222,6 +1222,18 @@ public:
 
         const bool checkerboard = restirDIContext.getStaticParameters().CheckerboardSamplingMode != rtxdi::CheckerboardMode::Off;
 
+        // static uint flag = WORLD_SPACE_RESERVOIR_UPDATE_ENABLE 
+        //                  | WORLD_SPACE_RESERVOIR_SAMPLE_ENABLE 
+        //                  | WORLD_SPACE_RESERVOIR_TEMPORAL_REUSE
+        //                  | WORLD_SPACE_RESERVOIR_DI_ENABLE
+        //                  | WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY
+        //                 //  | WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER
+        //                  | WORLD_SPACE_GRID_RESERVOIR_SURFACE_UPDATE;
+        // if (m_RenderFrameIndex % 100 == 0) {
+        //     flag ^= WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY;
+        // }
+        // m_ui.worldSpaceReservoirFlag = flag;
+
         bool enableDirectReStirPass = m_ui.directLightingMode == DirectLightingMode::ReStir ||
                                     (m_ui.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_ENABLE);
         bool enableBrdfAndIndirectPass = m_ui.directLightingMode == DirectLightingMode::Brdf || 
@@ -1263,6 +1275,8 @@ public:
                 lightingSettings,
                 m_ui.worldSpaceReservoirFlag,
                 m_ui.worldSpaceReservoirResetFlag);
+                
+            m_ui.worldSpaceReservoirResetFlag = false;
 
             // Post-process the gradients into a confidence buffer usable by NRD
             if (lightingSettings.enableGradients)

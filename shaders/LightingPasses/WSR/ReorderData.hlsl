@@ -14,8 +14,9 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID)
 
     WSRLightSample data = t_WorldSpaceLightSamplesBuffer[GlobalIndex.x];
     
+    uint gridId = data.gridIdOffset >> WORLD_GRID_SUB_CELL_OFFSET_BIT_NUM;
     uint index;
-    InterlockedAdd(u_WorldSpaceGridStatsBuffer[data.gridId].sampleCnt, 1, index);
+    InterlockedAdd(u_WorldSpaceGridStatsBuffer[gridId].sampleCnt, 1, index);
     // if (index < WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM)
-    u_OrederedWorldSpaceLightSamplesBuffer[u_WorldSpaceGridStatsBuffer[data.gridId].offset + index] = data;
+    u_OrederedWorldSpaceLightSamplesBuffer[u_WorldSpaceGridStatsBuffer[gridId].offset + index] = data;
 }

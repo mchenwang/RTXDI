@@ -144,12 +144,13 @@ LightingPasses::LightingPasses(
         nvrhi::BindingLayoutItem::Texture_UAV(15),
 
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(16),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(17),
 
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(17),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(18),
         nvrhi::BindingLayoutItem::StructuredBuffer_UAV(19),
-        nvrhi::BindingLayoutItem::RawBuffer_UAV(20),
-        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(21),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(20),
+        nvrhi::BindingLayoutItem::RawBuffer_UAV(21),
+        nvrhi::BindingLayoutItem::StructuredBuffer_UAV(22),
 
         nvrhi::BindingLayoutItem::TypedBuffer_SRV(26),
         nvrhi::BindingLayoutItem::StructuredBuffer_SRV(27),
@@ -289,12 +290,13 @@ void LightingPasses::CreateBindingSet(
             nvrhi::BindingSetItem::Texture_UAV(15, resources.debugTexture2),
             
             nvrhi::BindingSetItem::StructuredBuffer_UAV(16, resources.gridHashMapBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(17, resources.gridHashMapLockBuffer),
 
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(18, resources.worldSpaceLightReservoirsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.worldSpaceGridStatsBuffer),
-            nvrhi::BindingSetItem::RawBuffer_UAV(20, resources.worldSpaceReservoirsStats),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(21, resources.worldSpaceLightSamplesBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(17, resources.worldSpaceCellStatsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(18, resources.worldSpaceReservoirSurfaceBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(19, resources.worldSpaceLightReservoirsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(20, resources.worldSpaceGridStatsBuffer),
+            nvrhi::BindingSetItem::RawBuffer_UAV(21, resources.worldSpaceReservoirsStats),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(22, resources.worldSpaceLightSamplesBuffer),
 
             nvrhi::BindingSetItem::TypedBuffer_SRV(26, m_WSRUpdatableGridQueue),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(27, resources.worldSpaceReorderedLightSamplesBuffer),
@@ -484,6 +486,10 @@ void LightingPasses::createWSRPipelines(const std::vector<donut::engine::ShaderM
     Create("app/LightingPasses/WSR/ReorderData.hlsl", m_WSRReorderDataPass.pass.Shader, m_WSRReorderDataPass.pass.Pipeline, m_WSRReorderDataPass.bindingLayout);
     Create("app/LightingPasses/WSR/ResetReservoir.hlsl", m_WSRResetPass.pass.Shader, m_WSRResetPass.pass.Pipeline, m_WSRResetPass.bindingLayout);
 
+    CreateComputePass(m_SetSurfaceInGridPass, "app/LightingPasses/WSR/SetSurfaceInGrid.hlsl", regirMacros);
+    CreateComputePass(m_WSRTemporalReusePass, "app/LightingPasses/WSR/TemporalReuse.hlsl", regirMacros);
+    CreateComputePass(m_WSRGridReusePass, "app/LightingPasses/WSR/GridReuse.hlsl", regirMacros);
+
     m_WSRUpdatePass.Init(m_Device, *m_ShaderFactory, "app/LightingPasses/WSR/UpdateReservoir.hlsl", 
         regirMacros, useRayQuery, WORLD_SPACE_RESERVOIR_NUM_PER_GRID, m_BindingLayout, nullptr, m_BindlessLayout);
 
@@ -599,7 +605,7 @@ void LightingPasses::FillResamplingConstants(
 {
     const RTXDI_LightBufferParameters& lightBufferParameters = isContext.getLightBufferParameters();
 
-    constants.sceneGridScale = 0.5f;
+    constants.sceneGridScale = 0.3f;
 
     constants.enablePreviousTLAS = lightingSettings.enablePreviousTLAS;
     constants.denoiserMode = lightingSettings.denoiserMode;
@@ -757,7 +763,39 @@ void LightingPasses::RenderDirectLighting(
             nvrhi::ComputeState state;
             state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
             state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+            state.pipeline = m_SetSurfaceInGridPass.Pipeline;
+            commandList->setComputeState(state);
+            commandList->dispatchIndirect(16);
+        }
+        nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceCellStatsBuffer);
+        nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
+        {
+            nvrhi::ComputeState state;
+            state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
             state.pipeline = m_WSRUpdatePass.ComputePipeline;
+            commandList->setComputeState(state);
+            commandList->dispatchIndirect(16);
+        }
+        if (wsrFlag & WORLD_SPACE_RESERVOIR_TEMPORAL_REUSE)
+        {
+            nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
+
+            nvrhi::ComputeState state;
+            state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+            state.pipeline = m_WSRTemporalReusePass.Pipeline;
+            commandList->setComputeState(state);
+            commandList->dispatchIndirect(16);
+        }
+        // if (wsrFlag & WORLD_SPACE_RESERVOIR_GRID_REUSE)
+        {
+            nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
+
+            nvrhi::ComputeState state;
+            state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+            state.pipeline = m_WSRGridReusePass.Pipeline;
             commandList->setComputeState(state);
             commandList->dispatchIndirect(16);
         }
@@ -873,48 +911,48 @@ void LightingPasses::RenderBrdfRays(
 
         ExecuteRayTracingPass(commandList, m_ShadeSecondarySurfacesPass, localSettings.enableRayCounts, "ShadeSecondarySurfaces", dispatchSize, ProfilerSection::ShadeSecondary, nullptr);
         
-        if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-        {
-            commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update Secondary");
-            m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+        // if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        // {
+        //     commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update Secondary");
+        //     m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
 
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRSetGridStatsPass.bindingSet };
-                state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
-                state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatch(1, 1, 1);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRReorderDataPass.bindingSet };
-                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
-                state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatchIndirect(0);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
-                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
-                state.pipeline = m_WSRUpdatePass.ComputePipeline;
-                commandList->setComputeState(state);
-                commandList->dispatchIndirect(16);
-            }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRSetGridStatsPass.bindingSet };
+        //         state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
+        //         state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatch(1, 1, 1);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRReorderDataPass.bindingSet };
+        //         state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //         state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatchIndirect(0);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+        //         state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //         state.pipeline = m_WSRUpdatePass.ComputePipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatchIndirect(16);
+        //     }
 
-            commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
-            commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
+        //     commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
+        //     commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
 
-            m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
-            commandList->endMarker();
-        }
+        //     m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+        //     commandList->endMarker();
+        // }
 
         if (enableReSTIRGI)
         {

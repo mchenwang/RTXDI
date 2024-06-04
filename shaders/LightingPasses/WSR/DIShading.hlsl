@@ -45,33 +45,41 @@ void RayGen()
     RAB_LightSample lightSample = RAB_EmptyLightSample();
     RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
 
-    bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-    uint grid = SampleWorldSpaceReservoir(rng, surface, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, 
-        useJitter, reservoir, lightSample);
+    if (RAB_IsSurfaceValid(surface))
+    {
+        float3 gridNormal = (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_GRID_USE_GEO_NORMAL) ?
+            surface.geoNormal : surface.normal;
+        bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
+        uint grid = SampleWorldSpaceReservoir(rng, surface, gridNormal, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, 
+            useJitter, reservoir, lightSample);
 
-    uint geoNormalBits =
-        (surface.geoNormal.x >= 0 ? 1 : 0) +
-        (surface.geoNormal.y >= 0 ? 2 : 0) +
-        (surface.geoNormal.z >= 0 ? 4 : 0);
-    uint normalBits =
-        (surface.normal.x >= 0 ? 1 : 0) +
-        (surface.normal.y >= 0 ? 2 : 0) +
-        (surface.normal.z >= 0 ? 4 : 0);
+        // uint geoNormalBits =
+        //     (surface.geoNormal.x >= 0 ? 1 : 0) +
+        //     (surface.geoNormal.y >= 0 ? 2 : 0) +
+        //     (surface.geoNormal.z >= 0 ? 4 : 0);
+        // uint normalBits =
+        //     (surface.normal.x >= 0 ? 1 : 0) +
+        //     (surface.normal.y >= 0 ? 2 : 0) +
+        //     (surface.normal.z >= 0 ? 4 : 0);
+        
+        // const float3 colors[8] = {float3(0, 0, 0), float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1), 
+        //                     float3(1, 0, 1), float3(1, 1, 0), float3(0, 1, 1), float3(1, 1, 1)};
+
+        // if (grid == 40 * 128 * 128 * 128 / 255)
+        //     u_DebugColor1[pixelPosition] = float4(0.f, 1.f, 0.f, 1.f);
+        // else
+            // u_DebugColor1[pixelPosition] = float4(lightSample.radiance, 1.f);
+            u_DebugColor2[pixelPosition] = float4(grid * 1.f / WORLD_GRID_SIZE, 0.f, 0.f, 1.f);
     
-    const float3 colors[8] = {float3(0, 0, 0), float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1), 
-                        float3(1, 0, 1), float3(1, 1, 0), float3(0, 1, 1), float3(1, 1, 1)};
-
-    // u_DebugColor1[pixelPosition] = float4(colors[geoNormalBits], 1.f);
-    // u_DebugColor2[pixelPosition] = float4(colors[normalBits], 1.f);
-        u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
-
+    }
+    
     float3 diffuse = 0;
     float3 specular = 0;
     float lightDistance = 0;
 
     if (RTXDI_IsValidDIReservoir(reservoir))
         ShadeSurfaceWithLightSample(reservoir, surface, lightSample, /* previousFrameTLAS = */ false,
-            /* enableVisibilityReuse = */ true, diffuse, specular, lightDistance);
+            /* enableVisibilityReuse = */ false, diffuse, specular, lightDistance);
 
     specular = DemodulateSpecular(surface.specularF0, specular);
 

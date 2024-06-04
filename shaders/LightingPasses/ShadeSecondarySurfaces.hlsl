@@ -103,15 +103,19 @@ void RayGen()
 #endif
                 lightSample);
         }
-        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-        {
-            StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, 1.f);
-        }
+        // if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        // {
+        //     float3 gridNormal = (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_GRID_USE_GEO_NORMAL) ?
+        //         secondarySurface.geoNormal : secondarySurface.normal;
+        //     StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, gridNormal, 1.f);
+        // }
         
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {
+            float3 gridNormal = (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_GRID_USE_GEO_NORMAL) ?
+                secondarySurface.geoNormal : secondarySurface.normal;
             bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-            SampleWorldSpaceReservoir(rng, secondarySurface, primarySurface.worldPos, g_Const.sceneGridScale, useJitter, reservoir, lightSample);
+            SampleWorldSpaceReservoir(rng, secondarySurface, gridNormal, primarySurface.worldPos, g_Const.sceneGridScale, useJitter, reservoir, lightSample);
         }
 
         if (g_Const.brdfPT.enableSecondaryResampling)

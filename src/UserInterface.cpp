@@ -402,34 +402,38 @@ void UserInterface::SamplingSettings()
     {
         static bool s_WSRUpdatePrimary = true;
         static bool s_WSRUpdateSecondary = false;
-        static bool s_WSRReuse = true;
         ImGui::Checkbox("World Space Light Sample Update From Primary Ray", &s_WSRUpdatePrimary);
         ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
-        ImGui::Checkbox("Update Reuse", &s_WSRReuse);
+
+        static bool s_WSRTempReuse = true;
+        ImGui::Checkbox("Update Temporal Reuse", &s_WSRTempReuse);
+        static bool s_WSRGridReuse = true;
+        ImGui::Checkbox("Update Grid Reuse", &s_WSRGridReuse);
 
         static bool s_DIEnable = true;
         ImGui::Checkbox("DI Enable", &s_DIEnable);
 
         static bool s_GIEnable = false;
-        static bool s_GICombine = true;
         ImGui::Checkbox("GI Enable", &s_GIEnable);
-        if (s_GIEnable)
-        {
-            ImGui::Checkbox("GI Combine", &s_GICombine);
-        }
 
         static bool s_UseJitter = true;
         ImGui::Checkbox("Sample With Jitter", &s_UseJitter);
+        static bool s_UseGeoNormal = false;
+        ImGui::Checkbox("Grid Use Geometry Normal", &s_UseGeoNormal);
+        static bool s_ReservoirSurfaceUpdate = true;
+        ImGui::Checkbox("Surface Update", &s_ReservoirSurfaceUpdate);
 
         m_ui.worldSpaceReservoirFlag = ((s_WSRUpdatePrimary | s_WSRUpdateSecondary) ? 1 : 0);
         m_ui.worldSpaceReservoirFlag |= ((s_DIEnable | s_GIEnable) ? (1 << 1) : 0);
-        m_ui.worldSpaceReservoirFlag |= (s_WSRReuse ? (1 << 2) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_WSRTempReuse ? (1 << 2) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_WSRGridReuse ? (1 << 10) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_DIEnable ? (1 << 3) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_GIEnable ? (1 << 4) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdatePrimary ? (1 << 5) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
-        m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_ReservoirSurfaceUpdate ? (1 << 8) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_UseGeoNormal ? (1 << 9) : 0);
         
         if (ImGui::Button("Reset Reservoir"))
         {
