@@ -11,6 +11,7 @@ groupshared WSRCellDataInGrid gs_cellStats;
 [numthreads(WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 1, 1)]
 void main(uint3 GlobalIndex : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 {
+    return;
     if (Gid.x >= WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM) return;
 
     if (GTid.x == 0)
@@ -30,37 +31,13 @@ void main(uint3 GlobalIndex : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint3
     RAB_RandomSamplerState rng = WSR_InitRandomSampler(uint2(Gid.x, GTid.x), iterateCnt + 9 * 13);
     uint sampleCnt = stats.sampleCnt;
 
-    uint reservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + GTid.x;
-    WSRSurfaceData wsrSurface = u_WorldSpaceReservoirSurface[reservoirIndex];
-    bool updateSurface = true;
-    if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_GRID_RESERVOIR_SURFACE_UPDATE)
-    {
-        if (wsrSurface.age > 0 && wsrSurface.age < 30) updateSurface = false;
-    }
-    else if (wsrSurface.age != 0)
-    {
-        updateSurface = false;
-    }
-    if (updateSurface)
-    {
-        uint surfaceId = clamp(floor(RAB_GetNextRandom(rng) * sampleCnt), 0, sampleCnt - 1) + stats.offset;
-        uint packedPixelPosition = t_WorldSpaceReorderedLightSamplesBuffer[surfaceId].packedPixelPosition;
-        uint2 pixelPosition = uint2(packedPixelPosition & 0xffff, (packedPixelPosition >> 16) & 0xffff);
-        RAB_Surface surface = RAB_GetGBufferSurface(pixelPosition, false);
-        wsrSurface = PackWSRSurface(surface);
-        wsrSurface.age = 0;
-    }
-
-    wsrSurface.age++;
+    uint surfaceId = clamp(floor(RAB_GetNextRandom(rng) * sampleCnt), 0, sampleCnt - 1) + stats.offset;
+    uint packedPixelPosition = t_WorldSpaceReorderedLightSamplesBuffer[surfaceId].packedPixelPosition;
+    uint2 pixelPosition = uint2(packedPixelPosition & 0xffff, (packedPixelPosition >> 16) & 0xffff);
+    RAB_Surface surface = RAB_GetGBufferSurface(pixelPosition, false);
+    WSRSurfaceData  wsrSurface = PackWSRSurface(surface);
+    
     float3 surfaceNormal = octToNdirUnorm32(wsrSurface.normal);
-
-    // uint surfaceId = clamp(floor(RAB_GetNextRandom(rng) * sampleCnt), 0, sampleCnt - 1) + stats.offset;
-    // uint packedPixelPosition = t_WorldSpaceReorderedLightSamplesBuffer[surfaceId].packedPixelPosition;
-    // uint2 pixelPosition = uint2(packedPixelPosition & 0xffff, (packedPixelPosition >> 16) & 0xffff);
-    // RAB_Surface surface = RAB_GetGBufferSurface(pixelPosition, false);
-    // WSRSurfaceData wsrSurface = PackWSRSurface(surface);
-    // wsrSurface.age = 0;
-    // float3 surfaceNormal = surface.normal;
     
     uint subCellIndex = GetSubCellIndex(surfaceNormal);
 

@@ -68,7 +68,7 @@ void RayGen()
     if (RAB_IsSurfaceValid(surface) && (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_PRIMARY))
     {
         uint grid = 0;
-        if (RAB_GetNextRandom(rng) < (1.f / (1.f + exp(-surface.viewDepth)) - 0.5f))
+        // if (RAB_GetNextRandom(rng) < (1.f / (1.f + exp(-surface.viewDepth)) - 0.5f))
         {
             float3 gridNormal = (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_GRID_USE_GEO_NORMAL) ?
                 surface.geoNormal : surface.normal;
@@ -78,5 +78,6 @@ void RayGen()
         u_DebugColor1[pixelPosition] = float4(grid * 1.f / WORLD_GRID_SIZE, 0.f, 0.f, 1.f);
     }
     
-    RTXDI_StoreDIReservoir(reservoir, g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.initialSamplingOutputBufferIndex);
+    if (!(g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_DI_ENABLE))
+        RTXDI_StoreDIReservoir(reservoir, g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.initialSamplingOutputBufferIndex);
 }

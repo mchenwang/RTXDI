@@ -22,10 +22,10 @@ WSRSurfaceData PackWSRSurface(RAB_Surface surface)
 {
     WSRSurfaceData packedSurface = (WSRSurfaceData)0;
     packedSurface.worldPos = surface.worldPos;
+    packedSurface.diffuseProbability = surface.diffuseProbability;
     packedSurface.normal = ndirToOctUnorm32(surface.normal);
     packedSurface.diffuseAlbedo = Pack_R11G11B10_UFLOAT(surface.diffuseAlbedo);
     packedSurface.specularAndRoughness = Pack_R8G8B8A8_Gamma_UFLOAT(float4(surface.specularF0, surface.roughness));
-    // packedSurface.viewDir = ndirToOctUnorm32(surface.viewDir);
     packedSurface.geoNormal = ndirToOctUnorm32(surface.geoNormal);
 
     return packedSurface;
@@ -42,10 +42,41 @@ RAB_Surface UnpackWSRSurface(WSRSurfaceData packedSurface)
     float4 specularRough = Unpack_R8G8B8A8_Gamma_UFLOAT(packedSurface.specularAndRoughness);
     surface.specularF0 = specularRough.rgb;
     surface.roughness = specularRough.a;
-    // surface.diffuseProbability = getSurfaceDiffuseProbability(surface);
+    surface.diffuseProbability = packedSurface.diffuseProbability;
     // surface.viewDir = octToNdirUnorm32(packedSurface.viewDir);
 
     return surface;
+}
+
+float WSR_GetLightSampleTargetDistributionForGrid(RAB_LightSample lightSample, RAB_Surface aggregateSurface, float r, float thetaN)
+{
+    return RAB_GetLightSampleTargetPdfForSurface(lightSample, aggregateSurface);
+    // if (lightSample.solidAnglePdf <= 0)
+    //     return 0;
+
+    // float lightDistance = distance(aggregateSurface.worldPos, lightSample.position);
+    // float thetaD = asin(r / lightDistance);
+    // float averageSquaredDistance = 0.6f * r * r + lightDistance * lightDistance;
+
+    // // float3 psi = normalize(lightSample.position - aggregateSurface.worldPos);
+    // float3 psi = (lightSample.position - aggregateSurface.worldPos);
+
+    // float G = 1.f
+    //         * cos(max(acos(dot(aggregateSurface.normal, psi)) - thetaN - thetaD, 0.f)) 
+    //         * cos(max(acos(dot(lightSample.normal, psi)) - thetaD, 0.f))
+    //         // * (1.f / averageSquaredDistance)
+    //         * (1.f / lightSample.solidAnglePdf)
+    //         ;
+
+    // float3 L = (lightSample.position - aggregateSurface.worldPos) / lightDistance;
+
+    // float3 V = aggregateSurface.viewDir;
+    // float3 diffuse = Lambert(aggregateSurface.normal, -L) * aggregateSurface.diffuseAlbedo;
+    // float3 specular = GGX_times_NdotL(V, L, aggregateSurface.normal, max(aggregateSurface.roughness, kMinRoughness), aggregateSurface.specularF0);
+
+    // float3 scattering = lerp(specular, diffuse, aggregateSurface.diffuseProbability);
+
+    // return calcLuminance(lightSample.radiance * G * scattering);
 }
 
 uint StoreWorldSpaceLightSample(
@@ -63,7 +94,7 @@ uint StoreWorldSpaceLightSample(
     
     uint index;
     u_WorldSpaceReservoirStats.InterlockedAdd(0, 1, index);
-    if (index < WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM)
+    // if (index < WORLD_SPACE_LIGHT_SAMPLES_MAX_NUM)
     {
         WSRLightSample wsrLightSample = (WSRLightSample)0;
         wsrLightSample.gridIdOffset = (entry.gridId << WORLD_GRID_SUB_CELL_OFFSET_BIT_NUM) | (entry.subCellIndex & WORLD_GRID_SUB_CELL_OFFSET_BIT_MASK);
@@ -71,6 +102,8 @@ uint StoreWorldSpaceLightSample(
         wsrLightSample.uv = RTXDI_GetDIReservoirSampleUV(reservoir);
         wsrLightSample.invSourcePdf = RTXDI_GetDIReservoirInvPdf(reservoir);
         wsrLightSample.packedPixelPosition = (pixelPosition.y << 16) | (pixelPosition.x & 0xffff);
+
+        wsrLightSample.packedReservoir = RTXDI_PackDIReservoir(reservoir);
 
         u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
 
@@ -112,7 +145,7 @@ uint SampleWorldSpaceReservoir(
                 branchlessONB(gridNormal, tangent, bitangent);
                 float2 t = float2(RAB_GetNextRandom(rng), RAB_GetNextRandom(rng)) * 2.f - 1.f;
                 posJitter = tangent * t.x + bitangent * t.y;
-                posJitter *= sceneGridScale;
+                posJitter *= GetVoxelSize(GetGridLevel(surface.viewDepth), sceneGridScale);
             }
 
             bool valid = FindGridEntry(surface.worldPos + posJitter, gridNormal, surface.viewDepth, sceneGridScale, entry);
@@ -123,30 +156,20 @@ uint SampleWorldSpaceReservoir(
             
             if (valid)
             {
-                WSRCellDataInGrid cellStats = u_WorldSpaceCellStatsBuffer[entry.gridId];
-                uint candidateReservoirNum = WORLD_SPACE_RESERVOIR_NUM_PER_GRID;
-                uint candidateReservoirIndexOffset = 0;
-                // if (cellStats.cnt[entry.subCellIndex] > 0)
-                // {
-                //     candidateReservoirNum = cellStats.cnt[entry.subCellIndex];
-                //     candidateReservoirIndexOffset = cellStats.offset[entry.subCellIndex];
-                // }
-
-                uint index = clamp(RAB_GetNextRandom(rng) * candidateReservoirNum, 0, candidateReservoirNum - 1) + candidateReservoirIndexOffset;
+                uint index = clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
                 uint wsReservoirIndex = entry.gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + index;
-                
                 RTXDI_DIReservoir neighborReservoir = RTXDI_UnpackDIReservoir(u_WorldSpaceLightReservoirs[wsReservoirIndex].packedReservoir);
 
                 float neighborWeight = 0;
                 RAB_LightInfo candidateLight = RAB_EmptyLightInfo();
                 RAB_LightSample candidateLightSample = RAB_EmptyLightSample();
                 if (RTXDI_IsValidDIReservoir(neighborReservoir))
-                {   
+                {
                     candidateLight = RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(neighborReservoir), false);
-                    
+
                     candidateLightSample = RAB_SamplePolymorphicLight(
                         candidateLight, surface, RTXDI_GetDIReservoirSampleUV(neighborReservoir));
-                    
+
                     neighborWeight = RAB_GetLightSampleTargetPdfForSurface(candidateLightSample, surface);
                 }
                 
@@ -155,71 +178,6 @@ uint SampleWorldSpaceReservoir(
                     selectedLight = candidateLight;
                     selectedLightSample = candidateLightSample;
                 }
-
-                // uint j = 0;
-                // for (; j < 2; j++)
-                // {
-                //     uint i = clamp(RAB_GetNextRandom(rng) * WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0, WORLD_SPACE_RESERVOIR_NUM_PER_GRID - 1);
-                //     // uint i = j;
-                //     uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + i;
-                    
-                //     RTXDI_DIReservoir neighborReservoir = RTXDI_UnpackDIReservoir(u_WorldSpaceLightReservoirs[wsReservoirIndex].packedReservoir);
-
-                //     float neighborWeight = 0;
-                //     RAB_LightInfo candidateLight = RAB_EmptyLightInfo();
-                //     RAB_LightSample candidateLightSample = RAB_EmptyLightSample();
-                //     if (RTXDI_IsValidDIReservoir(neighborReservoir))
-                //     {   
-                //         candidateLight = RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(neighborReservoir), false);
-                        
-                //         candidateLightSample = RAB_SamplePolymorphicLight(
-                //             candidateLight, surface, RTXDI_GetDIReservoirSampleUV(neighborReservoir));
-                        
-                //         neighborWeight = RAB_GetLightSampleTargetPdfForSurface(candidateLightSample, surface);
-                //     }
-                    
-                //     if (RTXDI_CombineDIReservoirs(state, neighborReservoir, RAB_GetNextRandom(rng), neighborWeight))
-                //     {
-                //         selectedLight = candidateLight;
-                //         selectedLightSample = candidateLightSample;
-                //     }
-                // }
-
-                // for (j = 0; j < WORLD_GRID_SUB_CELL_NUM; j++)
-                // {
-                //     if (j == hashEntry.y) continue;
-
-                //     gridId = hashEntry.x + j;
-                //     // !!!!! TODO:
-                //     // if (u_GridNormalUnorderedMap[gridId] == HASH_GRID_INVALID_HASH_KEY) continue;
-
-                //     uint wsReservoirIndex = gridId * WORLD_SPACE_RESERVOIR_NUM_PER_GRID + 0;
-                    
-                //     RAB_Surface neighborSurface = UnpackWSRSurface(u_WorldSpaceLightReservoirs[wsReservoirIndex].packedSurface);
-                //     RTXDI_DIReservoir neighborReservoir = RTXDI_UnpackDIReservoir(u_WorldSpaceLightReservoirs[wsReservoirIndex].packedReservoir);
-
-                //     if (!RTXDI_IsValidDIReservoir(neighborReservoir))
-                //         continue;
-
-                //     float neighborWeight = 0;
-                //     RAB_LightInfo candidateLight = RAB_EmptyLightInfo();
-                //     RAB_LightSample candidateLightSample = RAB_EmptyLightSample();
-                //     if (RTXDI_IsValidDIReservoir(neighborReservoir))
-                //     {   
-                //         candidateLight = RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(neighborReservoir), false);
-                        
-                //         candidateLightSample = RAB_SamplePolymorphicLight(
-                //             candidateLight, surface, RTXDI_GetDIReservoirSampleUV(neighborReservoir));
-                        
-                //         neighborWeight = RAB_GetLightSampleTargetPdfForSurface(candidateLightSample, surface);
-                //     }
-                    
-                //     if (RTXDI_CombineDIReservoirs(state, neighborReservoir, RAB_GetNextRandom(rng), neighborWeight))
-                //     {
-                //         selectedLight = candidateLight;
-                //         selectedLightSample = candidateLightSample;
-                //     }
-                // }
             }
         }
     }

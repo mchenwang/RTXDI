@@ -168,7 +168,7 @@ LightingPasses::LightingPasses(
         desc.keepInitialState = true;
         desc.canHaveRawViews = true;
         desc.canHaveUAVs = true;
-        desc.byteSize = sizeof(uint32_t) * 4 * 2;
+        desc.byteSize = sizeof(uint32_t) * 4 * 3;
         m_WSRIndirectParamsBuffer = m_Device->createBuffer(desc);
     }
 
@@ -487,6 +487,7 @@ void LightingPasses::createWSRPipelines(const std::vector<donut::engine::ShaderM
     Create("app/LightingPasses/WSR/ResetReservoir.hlsl", m_WSRResetPass.pass.Shader, m_WSRResetPass.pass.Pipeline, m_WSRResetPass.bindingLayout);
 
     CreateComputePass(m_SetSurfaceInGridPass, "app/LightingPasses/WSR/SetSurfaceInGrid.hlsl", regirMacros);
+    CreateComputePass(m_WSRAggregatePass, "app/LightingPasses/WSR/Aggregate.hlsl", regirMacros);
     CreateComputePass(m_WSRTemporalReusePass, "app/LightingPasses/WSR/TemporalReuse.hlsl", regirMacros);
     CreateComputePass(m_WSRGridReusePass, "app/LightingPasses/WSR/GridReuse.hlsl", regirMacros);
 
@@ -605,7 +606,7 @@ void LightingPasses::FillResamplingConstants(
 {
     const RTXDI_LightBufferParameters& lightBufferParameters = isContext.getLightBufferParameters();
 
-    constants.sceneGridScale = 0.3f;
+    constants.sceneGridScale = 0.1f;
 
     constants.enablePreviousTLAS = lightingSettings.enablePreviousTLAS;
     constants.denoiserMode = lightingSettings.denoiserMode;
@@ -759,16 +760,16 @@ void LightingPasses::RenderDirectLighting(
             commandList->setComputeState(state);
             commandList->dispatchIndirect(0);
         }
-        {
-            nvrhi::ComputeState state;
-            state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
-            state.indirectParams = m_WSRIndirectParamsBuffer.Get();
-            state.pipeline = m_SetSurfaceInGridPass.Pipeline;
-            commandList->setComputeState(state);
-            commandList->dispatchIndirect(16);
-        }
-        nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceCellStatsBuffer);
-        nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
+        // {
+        //     nvrhi::ComputeState state;
+        //     state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+        //     state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //     state.pipeline = m_SetSurfaceInGridPass.Pipeline;
+        //     commandList->setComputeState(state);
+        //     commandList->dispatchIndirect(16);
+        // }
+        // nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceCellStatsBuffer);
+        // nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
         {
             nvrhi::ComputeState state;
             state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
@@ -777,6 +778,16 @@ void LightingPasses::RenderDirectLighting(
             commandList->setComputeState(state);
             commandList->dispatchIndirect(16);
         }
+        // {
+        //     nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
+
+        //     nvrhi::ComputeState state;
+        //     state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+        //     state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //     state.pipeline = m_WSRAggregatePass.Pipeline;
+        //     commandList->setComputeState(state);
+        //     commandList->dispatchIndirect(32);
+        // }
         if (wsrFlag & WORLD_SPACE_RESERVOIR_TEMPORAL_REUSE)
         {
             nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
@@ -788,7 +799,6 @@ void LightingPasses::RenderDirectLighting(
             commandList->setComputeState(state);
             commandList->dispatchIndirect(16);
         }
-        // if (wsrFlag & WORLD_SPACE_RESERVOIR_GRID_REUSE)
         {
             nvrhi::utils::BufferUavBarrier(commandList, m_RtxdiResources->worldSpaceReservoirSurfaceBuffer);
 

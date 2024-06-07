@@ -109,18 +109,33 @@ bool HashMapInsert(const HashKey hashKey, out CacheEntry cacheEntry)
     uint    initSlot    = slot;
     HashKey prevHashKey = HASH_GRID_INVALID_HASH_KEY;
 
-    const uint baseSlot = GetBaseSlot(slot);
-    for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+    uint maxLoopNum = 10;
+    while (maxLoopNum--)
     {
-        AtomicCompareExchangeL1(baseSlot + bucketOffset, HASH_GRID_INVALID_HASH_KEY, hashKey.x, prevHashKey.x);
-
+        AtomicCompareExchangeL1(slot, HASH_GRID_INVALID_HASH_KEY, hashKey.x, prevHashKey.x);
         if (prevHashKey.x == HASH_GRID_INVALID_HASH_KEY || prevHashKey.x == hashKey.x)
         {
-            cacheEntry.x = baseSlot + bucketOffset;
+            cacheEntry.x = slot;
             cacheEntry.y = hashKey.y;
             return true;
         }
+
+        hash = Hash32(hash);
+        slot = hash % S_HASH_MAP_CAPACITY;
     }
+
+    // const uint baseSlot = GetBaseSlot(slot);
+    // for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+    // {
+    //     AtomicCompareExchangeL1(baseSlot + bucketOffset, HASH_GRID_INVALID_HASH_KEY, hashKey.x, prevHashKey.x);
+
+    //     if (prevHashKey.x == HASH_GRID_INVALID_HASH_KEY || prevHashKey.x == hashKey.x)
+    //     {
+    //         cacheEntry.x = baseSlot + bucketOffset;
+    //         cacheEntry.y = hashKey.y;
+    //         return true;
+    //     }
+    // }
 
     cacheEntry = 0;
     return false;
@@ -131,24 +146,40 @@ bool HashMapFind(const HashKey hashKey, inout CacheEntry cacheEntry)
     uint    hash        = Hash32(hashKey.x);
     uint    slot        = hash % S_HASH_MAP_CAPACITY;
 
-    const uint baseSlot = GetBaseSlot(slot);
-    for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+    uint maxLoopNum = 10;
+    while (maxLoopNum--)
     {
-        SubLevelHashKey storedHashKey = u_GridHashMap[baseSlot + bucketOffset];
+        SubLevelHashKey storedHashKey = u_GridHashMap[slot];
 
         if (storedHashKey == hashKey.x)
         {
-            cacheEntry.x = baseSlot + bucketOffset;
+            cacheEntry.x = slot;
             cacheEntry.y = hashKey.y;
             return true;
         }
-#if HASH_GRID_ALLOW_COMPACTION
-        else if (storedHashKey == HASH_GRID_INVALID_HASH_KEY)
-        {
-            return false;
-        }
-#endif // HASH_GRID_ALLOW_COMPACTION
+
+        hash = Hash32(hash);
+        slot = hash % S_HASH_MAP_CAPACITY;
     }
+
+//     const uint baseSlot = GetBaseSlot(slot);
+//     for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+//     {
+//         SubLevelHashKey storedHashKey = u_GridHashMap[baseSlot + bucketOffset];
+
+//         if (storedHashKey == hashKey.x)
+//         {
+//             cacheEntry.x = baseSlot + bucketOffset;
+//             cacheEntry.y = hashKey.y;
+//             return true;
+//         }
+// #if HASH_GRID_ALLOW_COMPACTION
+//         else if (storedHashKey == HASH_GRID_INVALID_HASH_KEY)
+//         {
+//             return false;
+//         }
+// #endif // HASH_GRID_ALLOW_COMPACTION
+//     }
 
     return false;
 }

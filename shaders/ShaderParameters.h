@@ -345,7 +345,7 @@ struct WSRVisualizationConstants
 
 #define WORLD_SPACE_UPDATABLE_GRID_PER_FRAME_MAX_NUM        1000000
 // the number of reservoirs in a grid (not bigger than 32 or 64 is better)
-#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  16
+#define WORLD_SPACE_RESERVOIR_NUM_PER_GRID                  32
 #define WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR          16
 #define WORLD_SPACE_LIGHT_SAMPLES_PER_GRID_MAX_NUM          (WORLD_SPACE_RESERVOIR_NUM_PER_GRID * WORLD_SPACE_LIGHT_SAMPLE_NUM_PER_RESERVOIR)
 
@@ -367,7 +367,7 @@ struct WSRVisualizationConstants
 struct WSRSurfaceData
 {
     float3 worldPos;
-    uint age;
+    uint diffuseProbability;
 
     uint diffuseAlbedo;         // R11G11B10_UFLOAT
     uint specularAndRoughness;  // R8G8B8A8_Gamma_UFLOAT
@@ -395,6 +395,8 @@ struct WSRLightSample
 
     float2 uv;
     float2 pad;
+
+    RTXDI_PackedDIReservoir packedReservoir;
 };
 
 struct WSRStats

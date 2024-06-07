@@ -69,7 +69,8 @@ void RayGen()
         //     u_DebugColor1[pixelPosition] = float4(0.f, 1.f, 0.f, 1.f);
         // else
             // u_DebugColor1[pixelPosition] = float4(lightSample.radiance, 1.f);
-            u_DebugColor2[pixelPosition] = float4(grid * 1.f / WORLD_GRID_SIZE, 0.f, 0.f, 1.f);
+            // u_DebugColor2[pixelPosition] = float4(grid * 1.f / WORLD_GRID_SIZE, 0.f, 0.f, 1.f);
+            u_DebugColor2[pixelPosition] = float4(grid * 1.f / WORLD_SPACE_RESERVOIR_NUM_PER_GRID, 0.f, 0.f, 1.f);
     
     }
     

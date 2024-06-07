@@ -405,9 +405,9 @@ void UserInterface::SamplingSettings()
         ImGui::Checkbox("World Space Light Sample Update From Primary Ray", &s_WSRUpdatePrimary);
         ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
 
-        static bool s_WSRTempReuse = true;
+        static bool s_WSRTempReuse = false;
         ImGui::Checkbox("Update Temporal Reuse", &s_WSRTempReuse);
-        static bool s_WSRGridReuse = true;
+        static bool s_WSRGridReuse = false;
         ImGui::Checkbox("Update Grid Reuse", &s_WSRGridReuse);
 
         static bool s_DIEnable = true;
