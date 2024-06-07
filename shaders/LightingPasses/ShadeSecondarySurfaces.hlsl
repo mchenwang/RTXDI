@@ -103,10 +103,10 @@ void RayGen()
 #endif
                 lightSample);
         }
-        if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-        {
-            StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, 1.f);
-        }
+        // if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        // {
+        //     StoreWorldSpaceLightSample(reservoir, lightSample, rng, secondarySurface, g_Const.sceneGridScale, 1.f);
+        // }
         
         if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_GI_ENABLE)
         {

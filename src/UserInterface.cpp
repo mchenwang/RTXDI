@@ -404,7 +404,7 @@ void UserInterface::SamplingSettings()
         static bool s_WSRUpdateSecondary = false;
         static bool s_WSRReuse = true;
         ImGui::Checkbox("World Space Light Sample Update From Primary Ray", &s_WSRUpdatePrimary);
-        ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
+        // ImGui::Checkbox("World Space Light Sample Update From Secondary Ray", &s_WSRUpdateSecondary);
         ImGui::Checkbox("Update Reuse", &s_WSRReuse);
 
         static bool s_DIEnable = true;
@@ -413,10 +413,10 @@ void UserInterface::SamplingSettings()
         static bool s_GIEnable = false;
         static bool s_GICombine = true;
         ImGui::Checkbox("GI Enable", &s_GIEnable);
-        if (s_GIEnable)
-        {
-            ImGui::Checkbox("GI Combine", &s_GICombine);
-        }
+        // if (s_GIEnable)
+        // {
+        //     ImGui::Checkbox("GI Combine", &s_GICombine);
+        // }
 
         static bool s_UseJitter = true;
         ImGui::Checkbox("Sample With Jitter", &s_UseJitter);
@@ -427,9 +427,9 @@ void UserInterface::SamplingSettings()
         m_ui.worldSpaceReservoirFlag |= (s_DIEnable ? (1 << 3) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_GIEnable ? (1 << 4) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdatePrimary ? (1 << 5) : 0);
-        m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
+        // m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
-        m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
+        // m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
         
         if (ImGui::Button("Reset Reservoir"))
         {

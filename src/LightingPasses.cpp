@@ -599,7 +599,7 @@ void LightingPasses::FillResamplingConstants(
 {
     const RTXDI_LightBufferParameters& lightBufferParameters = isContext.getLightBufferParameters();
 
-    constants.sceneGridScale = 0.5f;
+    constants.sceneGridScale = 0.3f;
 
     constants.enablePreviousTLAS = lightingSettings.enablePreviousTLAS;
     constants.denoiserMode = lightingSettings.denoiserMode;
@@ -873,48 +873,48 @@ void LightingPasses::RenderBrdfRays(
 
         ExecuteRayTracingPass(commandList, m_ShadeSecondarySurfacesPass, localSettings.enableRayCounts, "ShadeSecondarySurfaces", dispatchSize, ProfilerSection::ShadeSecondary, nullptr);
         
-        if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
-        {
-            commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update Secondary");
-            m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+        // if (wsrFlag & WORLD_SPACE_RESERVOIR_UPDATE_SECONDARY)
+        // {
+        //     commandList->beginMarker("WorldSpaceReservoirUpdatePass::Update Secondary");
+        //     m_Profiler->BeginSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
 
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRSetGridStatsPass.bindingSet };
-                state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
-                state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatch(1, 1, 1);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_WSRReorderDataPass.bindingSet };
-                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
-                state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
-                commandList->setComputeState(state);
-                commandList->dispatchIndirect(0);
-            }
-            {
-                nvrhi::ComputeState state;
-                state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
-                state.indirectParams = m_WSRIndirectParamsBuffer.Get();
-                state.pipeline = m_WSRUpdatePass.ComputePipeline;
-                commandList->setComputeState(state);
-                commandList->dispatchIndirect(16);
-            }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRSetGridStatsPass.bindingSet };
+        //         state.pipeline = m_WSRSetGridStatsPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatch((uint32_t)ceil(WORLD_GRID_SIZE * 1.f / 64), 1, 1);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRSetIndirectParamsPass.bindingSet };
+        //         state.pipeline = m_WSRSetIndirectParamsPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatch(1, 1, 1);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_WSRReorderDataPass.bindingSet };
+        //         state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //         state.pipeline = m_WSRReorderDataPass.pass.Pipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatchIndirect(0);
+        //     }
+        //     {
+        //         nvrhi::ComputeState state;
+        //         state.bindings = { m_BindingSet, m_Scene->GetDescriptorTable() };
+        //         state.indirectParams = m_WSRIndirectParamsBuffer.Get();
+        //         state.pipeline = m_WSRUpdatePass.ComputePipeline;
+        //         commandList->setComputeState(state);
+        //         commandList->dispatchIndirect(16);
+        //     }
 
-            commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
-            commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
+        //     commandList->clearBufferUInt(m_WorldSpaceReservoirStatsBuffer, 0);
+        //     commandList->clearBufferUInt(m_WorldSpaceGridStatsBuffer, 0);
 
-            m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
-            commandList->endMarker();
-        }
+        //     m_Profiler->EndSection(commandList, ProfilerSection::WorldSpaceReservoirUpdate);
+        //     commandList->endMarker();
+        // }
 
         if (enableReSTIRGI)
         {

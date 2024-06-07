@@ -78,7 +78,7 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
-static int g_SceneId = 0;
+static int g_SceneId = 1;
 static const char* g_ScenePath[3] = {
     "/media/test.json",
     "/media/bistro-rtxdi.scene.json",

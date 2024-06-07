@@ -130,20 +130,22 @@ bool HashMapInsert(const HashKey hashKey, out CacheEntry cacheEntry)
     HashKey prevHashKey = HASH_GRID_INVALID_HASH_KEY;
 
     const uint baseSlot = GetBaseSlot(slot);
-    for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+    uint maxLoopCnt = 32;
+    while (--maxLoopCnt)
+    // for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
     {
-        AtomicCompareExchange(baseSlot + bucketOffset, HASH_GRID_INVALID_HASH_KEY, hashKey, prevHashKey);
+        // AtomicCompareExchange(baseSlot + bucketOffset, HASH_GRID_INVALID_HASH_KEY, hashKey, prevHashKey);
+        AtomicCompareExchange(slot, HASH_GRID_INVALID_HASH_KEY, hashKey, prevHashKey);
 
-        if (prevHashKey == HASH_GRID_INVALID_HASH_KEY)
+        if (prevHashKey == HASH_GRID_INVALID_HASH_KEY || prevHashKey == hashKey)
         {
-            cacheEntry = baseSlot + bucketOffset;
+            // cacheEntry = baseSlot + bucketOffset;
+            cacheEntry = slot;
             return true;
         }
-        else if (prevHashKey == hashKey)
-        {
-            cacheEntry = baseSlot + bucketOffset;
-            return true;
-        }
+
+        hash = Hash32(hash);
+        slot = hash % S_HASH_MAP_CAPACITY;
     }
 
     cacheEntry = 0;
@@ -156,21 +158,28 @@ bool HashMapFind(const HashKey hashKey, inout CacheEntry cacheEntry)
     uint    slot        = hash % S_HASH_MAP_CAPACITY;
 
     const uint baseSlot = GetBaseSlot(slot);
-    for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
+    uint maxLoopCnt = 32;
+    while (--maxLoopCnt)
+    // for (uint bucketOffset = 0; bucketOffset < HASH_GRID_HASH_MAP_BUCKET_SIZE && baseSlot + bucketOffset < S_HASH_MAP_CAPACITY; ++bucketOffset)
     {
-        HashKey storedHashKey = u_GridHashMap[baseSlot + bucketOffset];
+        // HashKey storedHashKey = u_GridHashMap[baseSlot + bucketOffset];
+        HashKey storedHashKey = u_GridHashMap[slot];
 
         if (storedHashKey == hashKey)
         {
-            cacheEntry = baseSlot + bucketOffset;
+            // cacheEntry = baseSlot + bucketOffset;
+            cacheEntry = slot;
             return true;
         }
-#if HASH_GRID_ALLOW_COMPACTION
-        else if (storedHashKey == HASH_GRID_INVALID_HASH_KEY)
-        {
-            return false;
-        }
-#endif // HASH_GRID_ALLOW_COMPACTION
+
+        hash = Hash32(hash);
+        slot = hash % S_HASH_MAP_CAPACITY;
+// #if HASH_GRID_ALLOW_COMPACTION
+//         else if (storedHashKey == HASH_GRID_INVALID_HASH_KEY)
+//         {
+//             return false;
+//         }
+// #endif // HASH_GRID_ALLOW_COMPACTION
     }
 
     return false;
