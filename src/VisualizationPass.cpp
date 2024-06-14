@@ -132,7 +132,7 @@ void VisualizationPass::Render(
         WSRVisualizationConstants constants = {};
         constants.visualizationMode = visualizationMode;
         renderView.FillPlanarViewConstants(constants.view);
-        constants.sceneGridScale = 0.1f;
+        constants.sceneGridScale = 0.3f;
 
         {
             state.setViewport(upscaledView.GetViewportState());
