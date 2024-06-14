@@ -209,9 +209,9 @@ bool FindEntry(float3 samplePosition, float3 sampleNormal, float viewDepth, floa
 float3 GetColorFromHash32(uint hash)
 {
     float3 color;
-    color.x = ((hash >>  0) & 0x3ff) / 1023.0f;
-    color.y = ((hash >> 11) & 0x7ff) / 2047.0f;
-    color.z = ((hash >> 22) & 0x7ff) / 2047.0f;
+    color.x = ((hash >>  0) & 0x7f) / 127.0f;
+    color.y = ((hash >>  7) & 0x7f) / 127.0f;
+    color.z = ((hash >> 14) & 0x7f) / 127.0f;
 
     return color;
 }
@@ -221,7 +221,7 @@ float3 HashGridDebugColoredHash(float3 samplePosition, float3 sampleNormal, floa
 {
     HashKey hashKey = ComputeSpatialHash(samplePosition, sampleNormal, viewDepth, scale);
 
-    return GetColorFromHash32(Hash32(hashKey));
+    return GetColorFromHash32(Hash32(hashKey) % S_HASH_MAP_CAPACITY);
 }
 #endif
 

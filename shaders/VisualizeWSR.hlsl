@@ -10,7 +10,7 @@ RWStructuredBuffer<uint> u_GridHashMapLockBuffer : register(u3);
 
 ConstantBuffer<WSRVisualizationConstants> g_Const : register(b0);
 Texture2D<float> t_GBufferDepth : register(t0);
-Texture2D<uint> t_GBufferGeoNormals : register(t1);
+Texture2D<uint> t_GBufferNormals : register(t1);
 
 RWTexture2D<float4> t_DebugColor1 : register(u0);
 RWTexture2D<float4> t_DebugColor2 : register(u1);
@@ -40,13 +40,13 @@ float4 main(float4 i_position : SV_Position) : SV_Target
     if (g_Const.visualizationMode == VIS_MODE_WS_GRID)
     {
         float viewDepth = t_GBufferDepth[pixelPos];
-        float3 normal = octToNdirUnorm32(t_GBufferGeoNormals[pixelPos]);
+        float3 normal = octToNdirUnorm32(t_GBufferNormals[pixelPos]);
         float3 wsPos = float3(0.f, 0.f, 0.f);
         if(viewDepth == BACKGROUND_DEPTH) return float4(0.f, 0.f, 0.f, 1.f);
 
         wsPos = viewDepthToWorldPos(g_Const.view, pixelPos, viewDepth);
 
-        result.xyz = HashGridDebugColoredHash(wsPos, normal, viewDepth, g_Const.sceneGridScale);
+        result.xyz = HashGridDebugColoredHash(wsPos, normal, viewDepth, 1.f);
         result.w = 1.f;
     }
     else if (g_Const.visualizationMode == VIS_MODE_ENV_VIS_DEBUG_1)

@@ -78,7 +78,7 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
-static int g_SceneId = 1;
+static int g_SceneId = 0;
 static const char* g_ScenePath[3] = {
     "/media/test.json",
     "/media/bistro-rtxdi.scene.json",
@@ -1263,6 +1263,8 @@ public:
                 lightingSettings,
                 m_ui.worldSpaceReservoirFlag,
                 m_ui.worldSpaceReservoirResetFlag);
+
+            m_ui.worldSpaceReservoirResetFlag = false;
 
             // Post-process the gradients into a confidence buffer usable by NRD
             if (lightingSettings.enableGradients)

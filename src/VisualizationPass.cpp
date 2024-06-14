@@ -80,7 +80,7 @@ VisualizationPass::VisualizationPass(nvrhi::IDevice* device,
 
         auto bindingDesc = nvrhi::BindingSetDesc()
             .addItem(nvrhi::BindingSetItem::Texture_SRV(0, renderTargets.Depth))
-            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferGeoNormals))
+            .addItem(nvrhi::BindingSetItem::Texture_SRV(1, renderTargets.GBufferNormals))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(0, rtxdiResources.debugTexture1))
             .addItem(nvrhi::BindingSetItem::Texture_UAV(1, rtxdiResources.debugTexture2))
             .addItem(nvrhi::BindingSetItem::ConstantBuffer(0, m_WSRVConstantBuffer))
