@@ -142,6 +142,10 @@ struct UIData
     IndirectLightingMode indirectLightingMode = IndirectLightingMode::None;
     uint32_t guidingFlag = 0;
     bool guidingResetFlag = false;
+
+    bool debugCameraMoveOnScreenCapture = false;
+    uint32_t debugCameraMoveFlag = 0;
+    bool screenCaptureFlag = false;
     
     uint32_t worldSpaceReservoirFlag = 0;
     bool worldSpaceReservoirResetFlag = false;

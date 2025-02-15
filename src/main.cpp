@@ -78,9 +78,9 @@ using namespace std::chrono;
 
 static int g_ExitCode = 0;
 
-static int g_SceneId = 0;
+static int g_SceneId = 1;
 static const char* g_ScenePath[3] = {
-    "/media/test.json",
+    "/media/dining_room/droom1.gltf",
     "/media/bistro-rtxdi.scene.json",
     "/media/Arcade/Arcade.gltf"
 };
@@ -1522,6 +1522,73 @@ public:
             g_ExitCode = success ? 0 : 1;
             
             glfwSetWindowShouldClose(GetDeviceManager()->GetWindow(), 1);
+        }
+
+        static bool tempScreenCaptureFlag = false;
+        static dm::float3 tempScreenCapturePos;
+        static dm::float3 tempScreenCaptureDir;
+        static dm::float3 tempScreenCaptureUp;
+
+        if (m_ui.debugCameraMoveOnScreenCapture)
+        {
+            if (tempScreenCaptureFlag)
+            {
+                auto now = std::chrono::system_clock::now();
+                auto time = std::chrono::system_clock::to_time_t(now);
+                std::stringstream ss;
+                ss << "screenshot_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".bmp";
+                std::string filename = ss.str();
+                SaveTexture(GetDevice(), m_RenderTargets->LdrColor, filename.c_str());
+
+                m_Camera.KeyboardUpdate(GLFW_KEY_A, 0, GLFW_RELEASE, 0);
+
+                auto targetPos = tempScreenCapturePos + tempScreenCaptureDir;
+                m_Camera.LookAt(tempScreenCapturePos, targetPos, tempScreenCaptureUp);
+
+                tempScreenCaptureFlag = false;
+            }
+
+            if (m_ui.screenCaptureFlag)
+            {
+                m_ui.screenCaptureFlag = false;
+                tempScreenCaptureFlag = true;
+
+                tempScreenCapturePos = m_Camera.GetPosition();
+                tempScreenCaptureDir = m_Camera.GetDir();
+                tempScreenCaptureUp = m_Camera.GetUp();
+
+                m_Camera.KeyboardUpdate(GLFW_KEY_A, 0, GLFW_PRESS, 0);
+
+            }
+        }
+        else if (m_ui.screenCaptureFlag)
+        {
+            m_ui.screenCaptureFlag = false;
+
+            auto now = std::chrono::system_clock::now();
+            auto time = std::chrono::system_clock::to_time_t(now);
+            std::stringstream ss;
+            ss << "screenshot_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".bmp";
+            std::string filename = ss.str();
+            SaveTexture(GetDevice(), m_RenderTargets->LdrColor, filename.c_str());
+        }
+
+        static bool tempDebugCameraMoveFlag = false;
+        if (m_ui.debugCameraMoveFlag != 0)
+        {
+            int action = tempDebugCameraMoveFlag ? GLFW_RELEASE : GLFW_PRESS;
+            if (m_ui.debugCameraMoveFlag & 1)
+                m_Camera.KeyboardUpdate(GLFW_KEY_W, 0, action, 0);
+            if (m_ui.debugCameraMoveFlag & 2)
+                m_Camera.KeyboardUpdate(GLFW_KEY_S, 0, action, 0);
+            if (m_ui.debugCameraMoveFlag & 4)
+                m_Camera.KeyboardUpdate(GLFW_KEY_A, 0, action, 0);
+            if (m_ui.debugCameraMoveFlag & 8)
+                m_Camera.KeyboardUpdate(GLFW_KEY_D, 0, action, 0);
+
+            tempDebugCameraMoveFlag = !tempDebugCameraMoveFlag;
+            if (tempDebugCameraMoveFlag == false)
+                m_ui.debugCameraMoveFlag = 0;
         }
         
         m_ui.gbufferSettings.enableMaterialReadback = false;

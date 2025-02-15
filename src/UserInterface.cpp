@@ -421,6 +421,9 @@ void UserInterface::SamplingSettings()
         static bool s_UseJitter = true;
         ImGui::Checkbox("Sample With Jitter", &s_UseJitter);
 
+        static bool s_SourceCombine = true;
+        ImGui::Checkbox("Screen Combine", &s_SourceCombine);
+
         m_ui.worldSpaceReservoirFlag = ((s_WSRUpdatePrimary | s_WSRUpdateSecondary) ? 1 : 0);
         m_ui.worldSpaceReservoirFlag |= ((s_DIEnable | s_GIEnable) ? (1 << 1) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_WSRReuse ? (1 << 2) : 0);
@@ -429,6 +432,7 @@ void UserInterface::SamplingSettings()
         m_ui.worldSpaceReservoirFlag |= (s_WSRUpdatePrimary ? (1 << 5) : 0);
         // m_ui.worldSpaceReservoirFlag |= (s_WSRUpdateSecondary ? (1 << 6) : 0);
         m_ui.worldSpaceReservoirFlag |= (s_UseJitter ? (1 << 7) : 0);
+        m_ui.worldSpaceReservoirFlag |= (s_SourceCombine ? (1 << 8) : 0);
         // m_ui.worldSpaceReservoirFlag |= (s_GICombine ? (1 << 9) : 0);
         
         if (ImGui::Button("Reset Reservoir"))
@@ -934,11 +938,43 @@ void UserInterface::PostProcessSettings()
 {
     if (ImGui_ColoredTreeNode("Post-Processing", c_ColorRegularHeader))
     {
+        static bool s_DebugCameraMove = false;
+        
+        ImGui::Checkbox("Debug Camera Move", &s_DebugCameraMove);
+        if (s_DebugCameraMove)
+        {
+            static bool s_W = false;
+            static bool s_S = false;
+            static bool s_A = false;
+            static bool s_D = false;
+            ImGui::SameLine();
+            ImGui::Checkbox("W", &s_W);
+            ImGui::SameLine();
+            ImGui::Checkbox("S", &s_S);
+            ImGui::SameLine();
+            ImGui::Checkbox("A", &s_A);
+            ImGui::SameLine();
+            ImGui::Checkbox("D", &s_D);
+            if (ImGui::Button("Move"))
+            {
+                m_ui.debugCameraMoveFlag = 0;
+                if (s_W) m_ui.debugCameraMoveFlag |= 1;
+                if (s_S) m_ui.debugCameraMoveFlag |= 2;
+                if (s_A) m_ui.debugCameraMoveFlag |= 4;
+                if (s_D) m_ui.debugCameraMoveFlag |= 8;
+            }
+        }
+        ImGui::Checkbox("Debug Camera Move Auto", &m_ui.debugCameraMoveOnScreenCapture);
+        ImGui::SameLine();
+        if (ImGui::Button("Screen Capture"))
+            m_ui.screenCaptureFlag = true;
+
         AntiAliasingMode previousAAMode = m_ui.aaMode;
         ImGui::RadioButton("No AA", (int*)&m_ui.aaMode, (int)AntiAliasingMode::None);
         ImGui::SameLine();
         ImGui::RadioButton("Accumulation", (int*)&m_ui.aaMode, (int)AntiAliasingMode::Accumulation);
         ImGui::SameLine();
+
         ImGui::RadioButton("TAAU", (int*)&m_ui.aaMode, (int)AntiAliasingMode::TAA);
 #ifdef WITH_DLSS
         if (m_ui.dlssAvailable)
