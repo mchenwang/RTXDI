@@ -380,7 +380,7 @@ struct WSRLightSample
     float random;
     float targetPdf;
     float invSourcePdf;
-    uint pad;
+    uint reservoirPosition;
 
     WSRSurfaceData surface;
 };

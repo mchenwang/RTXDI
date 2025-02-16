@@ -42,6 +42,7 @@ RAB_Surface UnpackWSRSurface(WSRSurfaceData packedSurface)
 }
 
 uint StoreWorldSpaceLightSample(
+    uint2 reservoirPosition,
     RTXDI_DIReservoir reservoir,
     RAB_LightSample lightSample,
     inout RAB_RandomSamplerState rng,
@@ -71,6 +72,8 @@ uint StoreWorldSpaceLightSample(
             wsrLightSample.random = RAB_GetNextRandom(rng);
 
             wsrLightSample.surface = PackWSRSurface(surface);
+
+            wsrLightSample.reservoirPosition = (reservoirPosition.x << 16) | reservoirPosition.y;
 
             u_WorldSpaceLightSamplesBuffer[index] = wsrLightSample;
 

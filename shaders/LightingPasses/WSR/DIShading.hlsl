@@ -45,25 +45,57 @@ void RayGen()
     RAB_LightSample lightSample = RAB_EmptyLightSample();
     RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
 
-    bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
-    uint grid = SampleWorldSpaceReservoir(rng, surface, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, 
-        useJitter, reservoir, lightSample);
+    u_DebugColor2[pixelPosition] = float4(0.f, 0.f, 0.f, 1.f);
 
-    uint geoNormalBits =
-        (surface.geoNormal.x >= 0 ? 1 : 0) +
-        (surface.geoNormal.y >= 0 ? 2 : 0) +
-        (surface.geoNormal.z >= 0 ? 4 : 0);
-    uint normalBits =
-        (surface.normal.x >= 0 ? 1 : 0) +
-        (surface.normal.y >= 0 ? 2 : 0) +
-        (surface.normal.z >= 0 ? 4 : 0);
-    
-    const float3 colors[8] = {float3(0, 0, 0), float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1), 
-                        float3(1, 0, 1), float3(1, 1, 0), float3(0, 1, 1), float3(1, 1, 1)};
+    if (g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SOURCE_COMBINE)
+    {
+        RTXDI_DIReservoir state = RTXDI_EmptyDIReservoir();
+        RTXDI_DIReservoir sourceReservoir = RTXDI_LoadDIReservoir(g_Const.restirDI.reservoirBufferParams, GlobalIndex, g_Const.restirDI.bufferIndices.shadingInputBufferIndex);
+        RAB_LightSample selectedLightSample = RAB_EmptyLightSample();
+        RTXDI_CombineDIReservoirs(state, sourceReservoir, 0.5f, sourceReservoir.targetPdf);
 
-    // u_DebugColor1[pixelPosition] = float4(colors[geoNormalBits], 1.f);
-    // u_DebugColor2[pixelPosition] = float4(colors[normalBits], 1.f);
-        u_DebugColor1[pixelPosition] = float4(grid * 1.f / (128 * 128 * 128), 0.f, 0.f, 1.f);
+        if (RTXDI_IsValidDIReservoir(sourceReservoir))
+        {
+            selectedLightSample = RAB_SamplePolymorphicLight(
+                RAB_LoadLightInfo(RTXDI_GetDIReservoirLightIndex(sourceReservoir), false), 
+                surface, RTXDI_GetDIReservoirSampleUV(sourceReservoir));
+        }
+        
+        RTXDI_DIReservoir gridReservoir = RTXDI_EmptyDIReservoir();
+        RAB_LightSample gridLightSample = RAB_EmptyLightSample();
+        bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
+        SampleWorldSpaceReservoir(rng, surface, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, 
+            useJitter, gridReservoir, gridLightSample);
+
+        float risWeight = 0;
+        if (RTXDI_IsValidDIReservoir(gridReservoir))
+        {
+            risWeight = RAB_GetLightSampleTargetPdfForSurface(gridLightSample, surface);
+            
+            float denominator = gridReservoir.targetPdf * gridReservoir.M;
+            gridReservoir.weightSum *= denominator;
+            denominator = risWeight * gridReservoir.M;
+            gridReservoir.weightSum = (denominator == 0.0) ? 0.0 : gridReservoir.weightSum / denominator;
+        }
+        
+        if (RTXDI_CombineDIReservoirs(state, gridReservoir, RAB_GetNextRandom(rng), risWeight))
+        {
+            selectedLightSample = gridLightSample;
+
+            u_DebugColor2[pixelPosition] = float4(0.f, 0.f, 1.f, 1.f);
+        }
+        
+        RTXDI_FinalizeResampling(state, 1, state.M);
+
+        reservoir = state;
+        lightSample = selectedLightSample;
+    }
+    else
+    {
+        bool useJitter = g_Const.worldSpaceReservoirFlag & WORLD_SPACE_RESERVOIR_SAMPLE_WITH_JITTER;
+        uint grid = SampleWorldSpaceReservoir(rng, surface, g_Const.view.cameraDirectionOrPosition.xyz, g_Const.sceneGridScale, 
+            useJitter, reservoir, lightSample);
+    }
 
     float3 diffuse = 0;
     float3 specular = 0;
